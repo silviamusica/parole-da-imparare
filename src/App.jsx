@@ -624,70 +624,77 @@ export default function LessicoGame() {
           <p className="text-slate-400">{words.length} parole caricate</p>
         </div>
 
-        <div className="bg-slate-800/40 border border-slate-700/50 p-4 rounded-2xl mb-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <p className="text-slate-200 font-bold">Selezione parole</p>
-              <p className="text-slate-500 text-sm">Scegli tranche per lettera (10%, 20%, 33%, 50%) o tutte le parole</p>
-              <p className="text-slate-400 text-xs mt-1">
+        <div className="bg-slate-800/50 border border-slate-700/60 p-6 rounded-3xl mb-6 shadow-xl">
+          <div className="grid gap-4 md:gap-6 md:grid-cols-[1.2fr_2fr] items-center">
+            <div className="space-y-1">
+              <p className="text-slate-200 font-bold text-lg">Selezione parole</p>
+              <p className="text-slate-500 text-sm leading-snug">
+                Scegli tranche per lettera (10%, 20%, 33%, 50%) o tutte le parole
+              </p>
+              <p className="text-slate-400 text-sm mt-2">
                 Disponibili: {getFilteredWords().length || words.length}
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                <select
-                  value={subsetMode === 'chunk' ? `chunk-${chunkPercent}` : 'all'}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'all') {
-                      setSubsetMode('all');
-                    } else {
-                      const perc = parseInt(val.split('-')[1], 10) || 10;
-                      setSubsetMode('chunk');
-                      setChunkPercent(perc);
-                      setChunkIndex(0);
-                    }
-                  }}
-                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2"
-                >
-                  <option value="all">Tutte (casuale)</option>
-                  <option value="chunk-10">Tranche 10%</option>
-                  <option value="chunk-20">Tranche 20%</option>
-                  <option value="chunk-33">Tranche 33%</option>
-                  <option value="chunk-50">Tranche 50%</option>
-                </select>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+              <select
+                value={subsetMode === 'chunk' ? `chunk-${chunkPercent}` : 'all'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'all') {
+                    setSubsetMode('all');
+                  } else {
+                    const perc = parseInt(val.split('-')[1], 10) || 10;
+                    setSubsetMode('chunk');
+                    setChunkPercent(perc);
+                    setChunkIndex(0);
+                  }
+                }}
+                className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-2xl px-4 py-3 text-sm md:text-base shadow-inner min-w-[170px]"
+              >
+                <option value="all">Tutte (casuale)</option>
+                <option value="chunk-10">Tranche 10%</option>
+                <option value="chunk-20">Tranche 20%</option>
+                <option value="chunk-33">Tranche 33%</option>
+                <option value="chunk-50">Tranche 50%</option>
+              </select>
 
-                {subsetMode === 'chunk' && (
-                  <select
-                    value={chunkIndex}
-                    onChange={(e) => setChunkIndex(parseInt(e.target.value, 10))}
-                    className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2"
-                  >
-                    {Array.from({ length: Math.max(1, Math.floor(100 / chunkPercent)) }).map((_, idx) => (
-                      <option key={idx} value={idx}>
-                        {idx + 1}° tranche ({idx === Math.floor(100 / chunkPercent) - 1 && chunkPercent === 33 ? 34 : chunkPercent}%)
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-slate-300 bg-slate-900/70 border border-slate-700 rounded-xl px-3 py-2">
+              {subsetMode === 'chunk' && (
+                <select
+                  value={chunkIndex}
+                  onChange={(e) => setChunkIndex(parseInt(e.target.value, 10))}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-2xl px-4 py-3 text-sm md:text-base shadow-inner min-w-[170px]"
+                >
+                  {Array.from({ length: Math.max(1, Math.floor(100 / chunkPercent)) }).map((_, idx) => (
+                    <option key={idx} value={idx}>
+                      {idx + 1}° tranche ({idx === Math.floor(100 / chunkPercent) - 1 && chunkPercent === 33 ? 34 : chunkPercent}%)
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner">
+                <div className="flex flex-col text-sm leading-tight">
+                  <span>Solo sbagliate</span>
+                  <span className="text-xs text-slate-400">({wordsToReview.length})</span>
+                </div>
                 <input
                   type="checkbox"
                   checked={onlyWrongSubset}
                   onChange={(e) => setOnlyWrongSubset(e.target.checked)}
-                  className="accent-cyan-600"
+                  className="accent-cyan-500 h-4 w-4"
                 />
-                <span className="text-sm">Solo sbagliate ({wordsToReview.length})</span>
               </label>
-              <label className="flex items-center gap-2 text-slate-300 bg-slate-900/70 border border-slate-700 rounded-xl px-3 py-2">
+
+              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner">
+                <div className="flex flex-col text-sm leading-tight">
+                  <span>Solo errori CSV</span>
+                </div>
                 <input
                   type="checkbox"
                   checked={onlyErrorFlag}
                   onChange={(e) => setOnlyErrorFlag(e.target.checked)}
-                  className="accent-cyan-600"
+                  className="accent-cyan-500 h-4 w-4"
                 />
-                <span className="text-sm">Solo errori CSV</span>
               </label>
             </div>
           </div>
