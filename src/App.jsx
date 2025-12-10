@@ -93,6 +93,7 @@ export default function LessicoGame() {
   const [consultOpenLetter, setConsultOpenLetter] = useState(null);
   const [consultFlashOpenLetter, setConsultFlashOpenLetter] = useState(null);
   const [consultFlipped, setConsultFlipped] = useState({});
+  const consultShuffleRef = useRef({});
   const audioCtxRef = useRef(null);
 
   const triggerAddedFeedback = (type = 'added') => {
@@ -1528,7 +1529,14 @@ export default function LessicoGame() {
 
       const orderWords = (arr) => {
         const items = [...arr];
-        if (consultOrder === 'random') return shuffleArray(items);
+        if (consultOrder === 'random') {
+          items.forEach(word => {
+            if (consultShuffleRef.current[word.term] === undefined) {
+              consultShuffleRef.current[word.term] = Math.random();
+            }
+          });
+          return items.sort((a, b) => consultShuffleRef.current[a.term] - consultShuffleRef.current[b.term]);
+        }
         return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
       };
 
@@ -1539,11 +1547,11 @@ export default function LessicoGame() {
 
       const total = perLetter.reduce((sum, s) => sum + s.words.length, 0);
 
-      const combined = consultLetter === 'all' && perLetter.length > 0 ? {
-        letter: 'Tutte le lettere',
-        words: orderWords(perLetter.flatMap(s => s.words)),
-        combined: true
-      } : null;
+        const combined = consultLetter === 'all' && perLetter.length > 0 ? {
+          letter: 'Tutte le lettere',
+          words: orderWords(perLetter.flatMap(s => s.words)),
+          combined: true
+        } : null;
 
       return { sections: [combined, ...perLetter].filter(Boolean), total };
     }, [pool, consultOrder, consultLetter]);
@@ -1698,7 +1706,14 @@ export default function LessicoGame() {
 
       const orderWords = (arr) => {
         const items = [...arr];
-        if (consultOrder === 'random') return shuffleArray(items);
+        if (consultOrder === 'random') {
+          items.forEach(word => {
+            if (consultShuffleRef.current[word.term] === undefined) {
+              consultShuffleRef.current[word.term] = Math.random();
+            }
+          });
+          return items.sort((a, b) => consultShuffleRef.current[a.term] - consultShuffleRef.current[b.term]);
+        }
         return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
       };
 
