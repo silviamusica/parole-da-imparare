@@ -84,7 +84,18 @@ export default function LessicoGame() {
   const [activePool, setActivePool] = useState([]);
   const [soundOn, setSoundOn] = useState(true);
   const [onlyErrorFlag, setOnlyErrorFlag] = useState(false);
+  const [consultSearch, setConsultSearch] = useState('');
+  const [menuTab, setMenuTab] = useState('games'); // games | consultation
+  const [flashcardOrder, setFlashcardOrder] = useState('random'); // random | alpha
+  const [flashcardLetter, setFlashcardLetter] = useState('all');
   const audioCtxRef = useRef(null);
+
+  // Se filtro per lettera, forza ordine casuale
+  useEffect(() => {
+    if (flashcardLetter !== 'all' && flashcardOrder !== 'random') {
+      setFlashcardOrder('random');
+    }
+  }, [flashcardLetter, flashcardOrder]);
 
   // Effetti sonori semplici
   const playSound = (type) => {
@@ -259,6 +270,9 @@ export default function LessicoGame() {
     if (onlyErrorFlag) {
       base = base.filter(w => (w.errorFlag || '').toUpperCase() === 'SI');
     }
+    if (flashcardLetter !== 'all') {
+      base = base.filter(w => (w.term?.[0] || '').toLowerCase() === flashcardLetter.toLowerCase());
+    }
 
     if (subsetMode === 'chunk') {
       const numChunks = Math.max(1, Math.floor(100 / chunkPercent));
@@ -293,6 +307,14 @@ export default function LessicoGame() {
 
   // Mostra selezione numero domande
   const selectMode = (mode) => {
+    if (mode === 'consultationFlashcard') {
+      startConsultationFlashcard();
+      return;
+    }
+    if (mode === 'consultation') {
+      startConsultation();
+      return;
+    }
     if (mode === 'match') {
       startGame(mode, null);
     } else {
@@ -301,11 +323,64 @@ export default function LessicoGame() {
     }
   };
 
+  const startConsultation = () => {
+    const pool = getFilteredWords().sort((a, b) =>
+      (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
+    );
+    if (!pool.length) {
+      alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
+      return;
+    }
+    setActivePool(pool);
+    setShuffledWords(pool);
+    setGameMode('consultation');
+    setShowModeSelection(false);
+    setPendingMode(null);
+    setCurrentIndex(0);
+    setShowAnswer(false);
+    setIsCorrect(null);
+    setWaitingForContinue(false);
+    setShowCorrectAnswer(null);
+    setIsTimerRunning(false);
+    setConsultSearch('');
+  };
+
+  const startConsultationFlashcard = () => {
+    const pool = getFilteredWords().sort((a, b) =>
+      (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
+    );
+    if (!pool.length) {
+      alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
+      return;
+    }
+    setActivePool(pool);
+    setShuffledWords(pool);
+    setGameMode('consultationFlashcard');
+    setShowModeSelection(false);
+    setPendingMode(null);
+    setCurrentIndex(0);
+    setShowAnswer(false);
+    setIsCorrect(null);
+    setWaitingForContinue(false);
+    setShowCorrectAnswer(null);
+    setIsTimerRunning(false);
+    setConsultSearch('');
+  };
+
   // Inizia nuovo gioco
   const startGame = (mode, limit) => {
     const actualLimit = limit || questionLimit;
     const minNeeded = mode === 'match' ? 6 : 1;
-    const pool = getWordPool();
+    let pool = getWordPool();
+
+    if (mode === 'flashcard') {
+      // Ordine flashcard personalizzato
+      if (flashcardOrder === 'alpha') {
+        pool = [...pool].sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
+      } else {
+        pool = shuffleArray(pool);
+      }
+    }
 
     if (pool.length < minNeeded) {
       alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
@@ -625,17 +700,17 @@ export default function LessicoGame() {
         </div>
 
         <div className="bg-slate-800/50 border border-slate-700/60 p-6 rounded-3xl mb-6 shadow-xl">
-          <div className="grid gap-4 md:gap-6 md:grid-cols-[1.2fr_2fr] items-center">
-            <div className="space-y-1">
-              <p className="text-slate-200 font-bold text-lg">Selezione parole</p>
-              <p className="text-slate-500 text-sm leading-snug">
-                Scegli tranche per lettera (10%, 20%, 33%, 50%) o tutte le parole
-              </p>
-              <p className="text-slate-400 text-sm mt-2">
-                Disponibili: {getFilteredWords().length || words.length}
-              </p>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+            <div className="grid gap-5 lg:gap-6 md:grid-cols-[1.1fr_2fr] items-start">
+              <div className="space-y-1">
+                <p className="text-slate-200 font-bold text-lg">Selezione parole</p>
+                <p className="text-slate-500 text-sm leading-snug">
+                  Scegli tranche per lettera (10%, 20%, 33%, 50%) o tutte le parole
+                </p>
+                <p className="text-slate-400 text-sm mt-2">
+                  Disponibili: {getFilteredWords().length || words.length}
+                </p>
+              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
               <select
                 value={subsetMode === 'chunk' ? `chunk-${chunkPercent}` : 'all'}
                 onChange={(e) => {
@@ -649,7 +724,7 @@ export default function LessicoGame() {
                     setChunkIndex(0);
                   }
                 }}
-                className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-2xl px-4 py-3 text-sm md:text-base shadow-inner min-w-[170px]"
+                className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-2xl px-4 py-3 text-sm md:text-base shadow-inner w-full"
               >
                 <option value="all">Tutte (casuale)</option>
                 <option value="chunk-10">Tranche 10%</option>
@@ -662,7 +737,7 @@ export default function LessicoGame() {
                 <select
                   value={chunkIndex}
                   onChange={(e) => setChunkIndex(parseInt(e.target.value, 10))}
-                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-2xl px-4 py-3 text-sm md:text-base shadow-inner min-w-[170px]"
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-2xl px-4 py-3 text-sm md:text-base shadow-inner w-full"
                 >
                   {Array.from({ length: Math.max(1, Math.floor(100 / chunkPercent)) }).map((_, idx) => (
                     <option key={idx} value={idx}>
@@ -672,7 +747,7 @@ export default function LessicoGame() {
                 </select>
               )}
 
-              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner">
+              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner w-full">
                 <div className="flex flex-col text-sm leading-tight">
                   <span>Solo sbagliate</span>
                   <span className="text-xs text-slate-400">({wordsToReview.length})</span>
@@ -685,7 +760,7 @@ export default function LessicoGame() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner">
+              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner w-full">
                 <div className="flex flex-col text-sm leading-tight">
                   <span>Solo errori CSV</span>
                 </div>
@@ -700,61 +775,113 @@ export default function LessicoGame() {
           </div>
         </div>
 
-        {wordsToReview.length > 0 && (
-          <button
-            onClick={() => setShowReviewPanel(true)}
-            className="w-full mb-6 bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between hover:bg-slate-700/50 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="bg-cyan-900/40 p-2 rounded-xl">
-                <BookOpen className="w-6 h-6 text-cyan-500" />
-              </div>
-              <div className="text-left">
-                <p className="text-slate-200 font-bold">Parole da rivedere</p>
-                <p className="text-slate-500 text-sm">{wordsToReview.length} parole salvate</p>
-              </div>
-            </div>
-            <ArrowRight className="w-5 h-5 text-slate-500" />
-          </button>
-        )}
-
-        <div className="grid gap-4">
-          <GameModeCard
-            icon={<Brain className="w-8 h-8" />}
-            title="Flashcard"
-            description="Studia le parole una alla volta"
-            color="from-slate-700 to-slate-800"
-            onClick={() => selectMode('flashcard')}
-          />
-          <GameModeCard
-            icon={<Target className="w-8 h-8" />}
-            title="Quiz"
-            description="Scegli la definizione corretta"
-            color="from-cyan-900 to-cyan-950"
-            onClick={() => selectMode('quiz')}
-          />
-          <GameModeCard
-            icon={<Zap className="w-8 h-8" />}
-            title="Speed Quiz"
-            description="Rispondi prima che scada il tempo!"
-            color="from-sky-900 to-slate-900"
-            onClick={() => selectMode('speedQuiz')}
-          />
-          <GameModeCard
-            icon={<Sparkles className="w-8 h-8" />}
-            title="Completa"
-            description="Scrivi la parola dalla definizione"
-            color="from-teal-900 to-cyan-950"
-            onClick={() => selectMode('fillBlank')}
-          />
-          <GameModeCard
-            icon={<Shuffle className="w-8 h-8" />}
-            title="Memory Match"
-            description="Abbina parole e definizioni"
-            color="from-zinc-800 to-slate-900"
-            onClick={() => selectMode('match')}
-          />
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4 mb-6">
+          <div className="flex gap-2 p-1 bg-slate-900/60 rounded-2xl border border-slate-700/50">
+            <button
+              onClick={() => setMenuTab('consultation')}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${menuTab === 'consultation' ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              Consultazione
+            </button>
+            <button
+              onClick={() => setMenuTab('games')}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${menuTab === 'games' ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              Giochi
+            </button>
+          </div>
         </div>
+
+        {menuTab === 'consultation' ? (
+          <div className="grid gap-4">
+            <GameModeCard
+              icon={<BookOpen className="w-8 h-8" />}
+              title="Consultazione"
+              description="Consulta e studia le parole filtrate"
+              color="from-indigo-900 to-slate-900"
+              onClick={() => selectMode('consultation')}
+            />
+            <GameModeCard
+              icon={<Eye className="w-8 h-8" />}
+              title="Consultazione Flashcard"
+              description="Vedi solo la parola e girala per i dettagli"
+              color="from-purple-900 to-slate-900"
+              onClick={() => selectMode('consultationFlashcard')}
+            />
+            {wordsToReview.length > 0 && (
+              <button
+                onClick={() => setShowReviewPanel(true)}
+                className="w-full bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between hover:bg-slate-700/50 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="bg-cyan-900/40 p-2 rounded-xl">
+                    <BookOpen className="w-6 h-6 text-cyan-500" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-slate-200 font-bold">Parole da rivedere</p>
+                    <p className="text-slate-500 text-sm">{wordsToReview.length} parole salvate</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-slate-500" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            <GameModeCard
+              icon={<Brain className="w-8 h-8" />}
+              title="Flashcard"
+              description="Studia le parole una alla volta"
+              color="from-slate-700 to-slate-800"
+              onClick={() => selectMode('flashcard')}
+            />
+            <GameModeCard
+              icon={<Target className="w-8 h-8" />}
+              title="Quiz"
+              description="Scegli la definizione corretta"
+              color="from-cyan-900 to-cyan-950"
+              onClick={() => selectMode('quiz')}
+            />
+            <GameModeCard
+              icon={<Zap className="w-8 h-8" />}
+              title="Speed Quiz"
+              description="Rispondi prima che scada il tempo!"
+              color="from-sky-900 to-slate-900"
+              onClick={() => selectMode('speedQuiz')}
+            />
+            <GameModeCard
+              icon={<Sparkles className="w-8 h-8" />}
+              title="Completa"
+              description="Scrivi la parola dalla definizione"
+              color="from-teal-900 to-cyan-950"
+              onClick={() => selectMode('fillBlank')}
+            />
+            <GameModeCard
+              icon={<Shuffle className="w-8 h-8" />}
+              title="Memory Match"
+              description="Abbina parole e definizioni"
+              color="from-zinc-800 to-slate-900"
+              onClick={() => selectMode('match')}
+            />
+            {wordsToReview.length > 0 && (
+              <button
+                onClick={() => setShowReviewPanel(true)}
+                className="w-full bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between hover:bg-slate-700/50 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="bg-cyan-900/40 p-2 rounded-xl">
+                    <BookOpen className="w-6 h-6 text-cyan-500" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-slate-200 font-bold">Parole da rivedere</p>
+                    <p className="text-slate-500 text-sm">{wordsToReview.length} parole salvate</p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-slate-500" />
+              </button>
+            )}
+          </div>
+        )}
 
         <button 
           onClick={() => setWords([])}
@@ -1343,6 +1470,300 @@ export default function LessicoGame() {
     </div>
   );
 
+  // Consultation Mode
+  const ConsultationMode = () => {
+    const pool = activePool.length ? activePool : getFilteredWords();
+    const grouped = pool.reduce((acc, word) => {
+      const initial = (word.term?.[0] || '#').toUpperCase();
+      if (!acc[initial]) acc[initial] = [];
+      acc[initial].push(word);
+      return acc;
+    }, {});
+
+    const orderWords = (arr) => {
+      const items = [...arr];
+      if (flashcardOrder === 'random') return shuffleArray(items);
+      return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
+    };
+
+    const sections = Object.entries(grouped)
+      .map(([letter, words]) => {
+        const visible = orderWords(words.filter(w => {
+          const text = `${w.term} ${w.accent || ''} ${w.definition || ''} ${w.etymology || ''} ${w.example || ''}`.toLowerCase();
+          return text.includes(consultSearch.toLowerCase());
+        }));
+        return { letter, words: visible };
+      })
+      .filter(section => section.words.length > 0)
+      .sort((a, b) => a.letter.localeCompare(b.letter, 'it', { sensitivity: 'base' }));
+
+    const combinedSection = sections.length > 0 ? {
+      letter: 'Tutte le lettere',
+      words: orderWords(sections.flatMap(s => s.words)),
+      combined: true
+    } : null;
+
+    const filteredCount = sections.reduce((sum, s) => sum + s.words.length, 0);
+    const [openLetter, setOpenLetter] = useState(null);
+
+    const toggleLetter = (letter) => {
+      setOpenLetter(prev => prev === letter ? null : letter);
+    };
+
+    const renderCard = (word, idx) => (
+      <div
+        key={`${word.term}-${idx}`}
+        className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:border-cyan-800/60 transition-colors"
+      >
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
+            {word.accent && (
+              <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setWordsToReview(prev => {
+                if (prev.some(w => w.term === word.term)) return prev;
+                return [...prev, { ...word, errorFlag: 'SI' }];
+              });
+            }}
+            className="text-xs bg-cyan-900/40 text-cyan-200 px-3 py-1 rounded-full border border-cyan-800/50 hover:bg-cyan-900/60"
+          >
+            + Da rivedere
+          </button>
+        </div>
+        <p className="text-slate-200 mb-2 leading-relaxed">{word.definition}</p>
+        {word.etymology && (
+          <p className="text-slate-400 text-sm italic mb-2">{word.etymology}</p>
+        )}
+        {word.example && (
+          <p className="text-slate-300 text-sm mt-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+            “{word.example}”
+          </p>
+        )}
+      </div>
+    );
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
+        <div className="max-w-5xl mx-auto pt-6">
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setGameMode(null)}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                ← Menu
+              </button>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={consultSearch}
+                  onChange={(e) => setConsultSearch(e.target.value)}
+                  placeholder="Cerca per termine, definizione, etimologia..."
+                  className="bg-slate-800/60 border border-slate-700 rounded-2xl px-4 py-2 text-slate-100 w-64"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4 items-center justify-between">
+              <h2 className="text-3xl font-bold text-slate-100 mt-2">Consultazione</h2>
+              <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
+              <div className="flex flex-wrap gap-3">
+                <select
+                  value={flashcardLetter}
+                  onChange={(e) => setFlashcardLetter(e.target.value)}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="all">Tutte le lettere</option>
+                  {'abcdefghijklmnopqrstuvwxyz'.split('').map(l => (
+                    <option key={l} value={l}>{l.toUpperCase()}</option>
+                  ))}
+                </select>
+                <select
+                  value={flashcardOrder}
+                  onChange={(e) => setFlashcardOrder(e.target.value)}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="random">Casuale</option>
+                  <option value="alpha" disabled={flashcardLetter !== 'all'}>Alfabetico</option>
+                </select>
+                <button
+                  onClick={() => { setFlashcardLetter('all'); setFlashcardOrder('random'); }}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {filteredCount === 0 ? (
+            <div className="text-center text-slate-400 bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+              Nessuna parola per questi filtri/ricerca.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-slate-500 text-sm mb-2 px-1">Clicca sulla lettera per espandere</p>
+              {[combinedSection, ...sections].filter(Boolean).map(section => (
+                <div key={section.letter} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl">
+                  <button
+                    onClick={() => toggleLetter(section.letter)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left text-slate-200 font-semibold"
+                  >
+                    <span className="text-lg">{section.combined ? section.letter : `Lettera ${section.letter}`}</span>
+                    <span className="text-sm text-slate-400">({section.words.length})</span>
+                  </button>
+                  {openLetter === section.letter && (
+                    <div className="grid gap-4 md:grid-cols-2 px-4 pb-4">
+                      {section.words.map(renderCard)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Consultation Flashcard Mode
+  const ConsultationFlashcardMode = () => {
+    const pool = activePool.length ? activePool : getFilteredWords();
+    const grouped = pool.reduce((acc, word) => {
+      const initial = (word.term?.[0] || '#').toUpperCase();
+      if (!acc[initial]) acc[initial] = [];
+      acc[initial].push(word);
+      return acc;
+    }, {});
+
+    const orderWords = (arr) => {
+      const items = [...arr];
+      if (flashcardOrder === 'random') return shuffleArray(items);
+      return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
+    };
+
+    const sections = Object.entries(grouped)
+      .map(([letter, words]) => {
+        const visible = orderWords(words.filter(w => {
+          const text = `${w.term} ${w.accent || ''} ${w.definition || ''} ${w.etymology || ''} ${w.example || ''}`.toLowerCase();
+          return text.includes(consultSearch.toLowerCase());
+        }));
+        return { letter, words: visible };
+      })
+      .filter(section => section.words.length > 0)
+      .sort((a, b) => a.letter.localeCompare(b.letter, 'it', { sensitivity: 'base' }));
+
+    const combinedSection = sections.length > 0 ? {
+      letter: 'Tutte le lettere',
+      words: orderWords(sections.flatMap(s => s.words)),
+      combined: true
+    } : null;
+
+    const filteredCount = sections.reduce((sum, s) => sum + s.words.length, 0);
+    const [openLetter, setOpenLetter] = useState(null);
+    const [flipped, setFlipped] = useState({});
+
+    const toggleFlip = (term) => {
+      setFlipped(prev => ({ ...prev, [term]: !prev[term] }));
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
+        <div className="max-w-5xl mx-auto pt-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <button
+                onClick={() => setGameMode(null)}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                ← Menu
+              </button>
+              <h2 className="text-3xl font-bold text-slate-100 mt-2">Consultazione Flashcard</h2>
+              <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
+            </div>
+          </div>
+
+          {filteredCount === 0 ? (
+            <div className="text-center text-slate-400 bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+              Nessuna parola per questi filtri/ricerca.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-slate-500 text-sm mb-1 px-1">Casuale / tutte le parole — clicca sulla lettera per espandere</p>
+              {[combinedSection, ...sections].filter(Boolean).map(section => (
+                <div key={section.letter} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl">
+                  <button
+                    onClick={() => setOpenLetter(prev => prev === section.letter ? null : section.letter)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left text-slate-200 font-semibold"
+                  >
+                    <span className="text-lg">{section.combined ? section.letter : `Lettera ${section.letter}`}</span>
+                    <span className="text-sm text-slate-400">({section.words.length})</span>
+                  </button>
+                  {openLetter === section.letter && (
+                    <div className="grid gap-4 md:grid-cols-2 px-4 pb-4">
+                      {section.words.map((word, idx) => {
+                        const isFlipped = flipped[word.term];
+                        return (
+                          <div
+                            key={`${word.term}-${idx}`}
+                            className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:border-cyan-800/60 transition-colors cursor-pointer"
+                            onClick={() => toggleFlip(word.term)}
+                          >
+                            {!isFlipped ? (
+                              <div className="min-h-[120px] flex items-center justify-center">
+                                <h3 className="text-2xl font-bold text-slate-100">{word.term}</h3>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
+                                    {word.accent && (
+                                      <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setWordsToReview(prev => {
+                                        if (prev.some(w => w.term === word.term)) return prev;
+                                        return [...prev, { ...word, errorFlag: 'SI' }];
+                                      });
+                                    }}
+                                    className="text-xs bg-cyan-900/40 text-cyan-200 px-3 py-1 rounded-full border border-cyan-800/50 hover:bg-cyan-900/60"
+                                  >
+                                    + Da rivedere
+                                  </button>
+                                </div>
+                                <p className="text-slate-200 leading-relaxed">{word.definition}</p>
+                                {word.etymology && (
+                                  <p className="text-slate-400 text-sm italic">{word.etymology}</p>
+                                )}
+                                {word.example && (
+                                  <p className="text-slate-300 text-sm mt-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                                    “{word.example}”
+                                  </p>
+                                )}
+                                <p className="text-slate-500 text-xs">Clicca per richiudere</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Render principale
   return (
     <>
@@ -1350,12 +1771,14 @@ export default function LessicoGame() {
       {words.length === 0 ? <UploadScreen /> :
        showModeSelection ? <QuestionLimitSelection /> :
        !gameMode ? <MainMenu /> :
-       gameMode === 'results' ? <ResultsScreen /> :
-       gameMode === 'flashcard' ? <FlashcardMode /> :
-       (gameMode === 'quiz' || gameMode === 'speedQuiz') ? <QuizMode /> :
-       gameMode === 'fillBlank' ? <FillBlankMode /> :
-       gameMode === 'match' ? <MatchMode /> :
-       <MainMenu />}
+      gameMode === 'results' ? <ResultsScreen /> :
+      gameMode === 'consultation' ? <ConsultationMode /> :
+      gameMode === 'consultationFlashcard' ? <ConsultationFlashcardMode /> :
+      gameMode === 'flashcard' ? <FlashcardMode /> :
+      (gameMode === 'quiz' || gameMode === 'speedQuiz') ? <QuizMode /> :
+      gameMode === 'fillBlank' ? <FillBlankMode /> :
+      gameMode === 'match' ? <MatchMode /> :
+      <MainMenu />}
     </>
   );
 }
