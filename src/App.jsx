@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle } from 'lucide-react';
 
 // Parser CSV semplice - STRUTTURA: parola, accento, definizione, etimologia, esempio, data_inserimento, errori (SI/NO)
@@ -86,16 +86,17 @@ export default function LessicoGame() {
   const [onlyErrorFlag, setOnlyErrorFlag] = useState(false);
   const [consultSearch, setConsultSearch] = useState('');
   const [menuTab, setMenuTab] = useState('games'); // games | consultation
-  const [flashcardOrder, setFlashcardOrder] = useState('random'); // random | alpha
-  const [flashcardLetter, setFlashcardLetter] = useState('all');
+  const [consultOrder, setConsultOrder] = useState('random'); // random | alpha
+  const [consultLetter, setConsultLetter] = useState('all');
+  const [studyView, setStudyView] = useState('list'); // list | flashcard
   const audioCtxRef = useRef(null);
 
-  // Se filtro per lettera, forza ordine casuale
+  // Se filtro per lettera in consultazione, forza ordine casuale
   useEffect(() => {
-    if (flashcardLetter !== 'all' && flashcardOrder !== 'random') {
-      setFlashcardOrder('random');
+    if (consultLetter !== 'all' && consultOrder !== 'random') {
+      setConsultOrder('random');
     }
-  }, [flashcardLetter, flashcardOrder]);
+  }, [consultLetter, consultOrder]);
 
   // Effetti sonori semplici
   const playSound = (type) => {
@@ -270,9 +271,6 @@ export default function LessicoGame() {
     if (onlyErrorFlag) {
       base = base.filter(w => (w.errorFlag || '').toUpperCase() === 'SI');
     }
-    if (flashcardLetter !== 'all') {
-      base = base.filter(w => (w.term?.[0] || '').toLowerCase() === flashcardLetter.toLowerCase());
-    }
 
     if (subsetMode === 'chunk') {
       const numChunks = Math.max(1, Math.floor(100 / chunkPercent));
@@ -372,15 +370,6 @@ export default function LessicoGame() {
     const actualLimit = limit || questionLimit;
     const minNeeded = mode === 'match' ? 6 : 1;
     let pool = getWordPool();
-
-    if (mode === 'flashcard') {
-      // Ordine flashcard personalizzato
-      if (flashcardOrder === 'alpha') {
-        pool = [...pool].sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
-      } else {
-        pool = shuffleArray(pool);
-      }
-    }
 
     if (pool.length < minNeeded) {
       alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
@@ -781,7 +770,7 @@ export default function LessicoGame() {
               onClick={() => setMenuTab('consultation')}
               className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${menuTab === 'consultation' ? 'bg-slate-700 text-slate-100' : 'text-slate-400 hover:text-slate-200'}`}
             >
-              Consultazione
+              Studio
             </button>
             <button
               onClick={() => setMenuTab('games')}
@@ -794,20 +783,36 @@ export default function LessicoGame() {
 
         {menuTab === 'consultation' ? (
           <div className="grid gap-4">
-            <GameModeCard
-              icon={<BookOpen className="w-8 h-8" />}
-              title="Consultazione"
-              description="Consulta e studia le parole filtrate"
-              color="from-indigo-900 to-slate-900"
-              onClick={() => selectMode('consultation')}
-            />
-            <GameModeCard
-              icon={<Eye className="w-8 h-8" />}
-              title="Consultazione Flashcard"
-              description="Vedi solo la parola e girala per i dettagli"
-              color="from-purple-900 to-slate-900"
-              onClick={() => selectMode('consultationFlashcard')}
-            />
+        <div className="bg-slate-800/50 border border-slate-700/50 p-5 rounded-2xl flex flex-col gap-3">
+          <p className="text-slate-400 text-sm">
+            Per studiare una tranche specifica, seleziona i filtri/percentuali in alto; se lasci "tutte", userai l'intero database.
+          </p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-6 h-6 text-cyan-500" />
+              <div>
+                <p className="text-slate-200 font-bold text-lg">Studio</p>
+                    <p className="text-slate-400 text-sm">Visualizza le parole filtrate</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <select
+                    value={studyView}
+                    onChange={(e) => setStudyView(e.target.value)}
+                    className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
+                  >
+                    <option value="list">Schede (elenco)</option>
+                    <option value="flashcard">Flashcard</option>
+                  </select>
+                  <button
+                    onClick={() => studyView === 'flashcard' ? selectMode('consultationFlashcard') : selectMode('consultation')}
+                    className="bg-cyan-900 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 hover:bg-cyan-800 text-sm"
+                  >
+                    Apri
+                  </button>
+                </div>
+              </div>
+            </div>
             {wordsToReview.length > 0 && (
               <button
                 onClick={() => setShowReviewPanel(true)}
@@ -1472,38 +1477,47 @@ export default function LessicoGame() {
 
   // Consultation Mode
   const ConsultationMode = () => {
-    const pool = activePool.length ? activePool : getFilteredWords();
-    const grouped = pool.reduce((acc, word) => {
-      const initial = (word.term?.[0] || '#').toUpperCase();
-      if (!acc[initial]) acc[initial] = [];
-      acc[initial].push(word);
-      return acc;
-    }, {});
+    let pool = activePool.length ? activePool : getFilteredWords();
+    if (consultLetter !== 'all') {
+      pool = pool.filter(w => (w.term?.[0] || '').toLowerCase() === consultLetter.toLowerCase());
+    }
+    const { sections, total } = useMemo(() => {
+      const grouped = pool.reduce((acc, word) => {
+        const initial = (word.term?.[0] || '#').toUpperCase();
+        if (!acc[initial]) acc[initial] = [];
+        acc[initial].push(word);
+        return acc;
+      }, {});
 
-    const orderWords = (arr) => {
-      const items = [...arr];
-      if (flashcardOrder === 'random') return shuffleArray(items);
-      return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
-    };
+      const orderWords = (arr) => {
+        const items = [...arr];
+        if (consultOrder === 'random') return shuffleArray(items);
+        return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
+      };
 
-    const sections = Object.entries(grouped)
-      .map(([letter, words]) => {
-        const visible = orderWords(words.filter(w => {
-          const text = `${w.term} ${w.accent || ''} ${w.definition || ''} ${w.etymology || ''} ${w.example || ''}`.toLowerCase();
-          return text.includes(consultSearch.toLowerCase());
-        }));
-        return { letter, words: visible };
-      })
-      .filter(section => section.words.length > 0)
-      .sort((a, b) => a.letter.localeCompare(b.letter, 'it', { sensitivity: 'base' }));
+      const perLetter = Object.entries(grouped)
+        .map(([letter, words]) => {
+          const visible = orderWords(words.filter(w => {
+            const text = `${w.term} ${w.accent || ''} ${w.definition || ''} ${w.etymology || ''} ${w.example || ''}`.toLowerCase();
+            return text.includes(consultSearch.toLowerCase());
+          }));
+          return { letter, words: visible };
+        })
+        .filter(section => section.words.length > 0)
+        .sort((a, b) => a.letter.localeCompare(b.letter, 'it', { sensitivity: 'base' }));
 
-    const combinedSection = sections.length > 0 ? {
-      letter: 'Tutte le lettere',
-      words: orderWords(sections.flatMap(s => s.words)),
-      combined: true
-    } : null;
+      const total = perLetter.reduce((sum, s) => sum + s.words.length, 0);
 
-    const filteredCount = sections.reduce((sum, s) => sum + s.words.length, 0);
+      const combined = perLetter.length > 0 ? {
+        letter: 'Tutte le lettere',
+        words: orderWords(perLetter.flatMap(s => s.words)),
+        combined: true
+      } : null;
+
+      return { sections: [combined, ...perLetter].filter(Boolean), total };
+    }, [pool, consultOrder, consultSearch]);
+
+    const filteredCount = total;
     const [openLetter, setOpenLetter] = useState(null);
 
     const toggleLetter = (letter) => {
@@ -1572,8 +1586,8 @@ export default function LessicoGame() {
               <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
               <div className="flex flex-wrap gap-3">
                 <select
-                  value={flashcardLetter}
-                  onChange={(e) => setFlashcardLetter(e.target.value)}
+                  value={consultLetter}
+                  onChange={(e) => setConsultLetter(e.target.value)}
                   className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="all">Tutte le lettere</option>
@@ -1582,15 +1596,15 @@ export default function LessicoGame() {
                   ))}
                 </select>
                 <select
-                  value={flashcardOrder}
-                  onChange={(e) => setFlashcardOrder(e.target.value)}
+                  value={consultOrder}
+                  onChange={(e) => setConsultOrder(e.target.value)}
                   className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
                 >
                   <option value="random">Casuale</option>
-                  <option value="alpha" disabled={flashcardLetter !== 'all'}>Alfabetico</option>
+                  <option value="alpha" disabled={consultLetter !== 'all'}>Alfabetico</option>
                 </select>
                 <button
-                  onClick={() => { setFlashcardLetter('all'); setFlashcardOrder('random'); }}
+                  onClick={() => { setConsultLetter('all'); setConsultOrder('random'); }}
                   className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
                 >
                   Reset
@@ -1606,7 +1620,7 @@ export default function LessicoGame() {
           ) : (
             <div className="space-y-3">
               <p className="text-slate-500 text-sm mb-2 px-1">Clicca sulla lettera per espandere</p>
-              {[combinedSection, ...sections].filter(Boolean).map(section => (
+              {sections.map(section => (
                 <div key={section.letter} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl">
                   <button
                     onClick={() => toggleLetter(section.letter)}
@@ -1617,7 +1631,7 @@ export default function LessicoGame() {
                   </button>
                   {openLetter === section.letter && (
                     <div className="grid gap-4 md:grid-cols-2 px-4 pb-4">
-                      {section.words.map(renderCard)}
+                      {section.words.map((word) => renderCard(word))}
                     </div>
                   )}
                 </div>
@@ -1631,38 +1645,48 @@ export default function LessicoGame() {
 
   // Consultation Flashcard Mode
   const ConsultationFlashcardMode = () => {
-    const pool = activePool.length ? activePool : getFilteredWords();
-    const grouped = pool.reduce((acc, word) => {
-      const initial = (word.term?.[0] || '#').toUpperCase();
-      if (!acc[initial]) acc[initial] = [];
-      acc[initial].push(word);
-      return acc;
-    }, {});
+    let pool = activePool.length ? activePool : getFilteredWords();
+    if (consultLetter !== 'all') {
+      pool = pool.filter(w => (w.term?.[0] || '').toLowerCase() === consultLetter.toLowerCase());
+    }
 
-    const orderWords = (arr) => {
-      const items = [...arr];
-      if (flashcardOrder === 'random') return shuffleArray(items);
-      return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
-    };
+    const { sections, total } = useMemo(() => {
+      const grouped = pool.reduce((acc, word) => {
+        const initial = (word.term?.[0] || '#').toUpperCase();
+        if (!acc[initial]) acc[initial] = [];
+        acc[initial].push(word);
+        return acc;
+      }, {});
 
-    const sections = Object.entries(grouped)
-      .map(([letter, words]) => {
-        const visible = orderWords(words.filter(w => {
-          const text = `${w.term} ${w.accent || ''} ${w.definition || ''} ${w.etymology || ''} ${w.example || ''}`.toLowerCase();
-          return text.includes(consultSearch.toLowerCase());
-        }));
-        return { letter, words: visible };
-      })
-      .filter(section => section.words.length > 0)
-      .sort((a, b) => a.letter.localeCompare(b.letter, 'it', { sensitivity: 'base' }));
+      const orderWords = (arr) => {
+        const items = [...arr];
+        if (consultOrder === 'random') return shuffleArray(items);
+        return items.sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
+      };
 
-    const combinedSection = sections.length > 0 ? {
-      letter: 'Tutte le lettere',
-      words: orderWords(sections.flatMap(s => s.words)),
-      combined: true
-    } : null;
+      const perLetter = Object.entries(grouped)
+        .map(([letter, words]) => {
+          const visible = orderWords(words.filter(w => {
+            const text = `${w.term} ${w.accent || ''} ${w.definition || ''} ${w.etymology || ''} ${w.example || ''}`.toLowerCase();
+            return text.includes(consultSearch.toLowerCase());
+          }));
+          return { letter, words: visible };
+        })
+        .filter(section => section.words.length > 0)
+        .sort((a, b) => a.letter.localeCompare(b.letter, 'it', { sensitivity: 'base' }));
 
-    const filteredCount = sections.reduce((sum, s) => sum + s.words.length, 0);
+      const total = perLetter.reduce((sum, s) => sum + s.words.length, 0);
+
+      const combined = perLetter.length > 0 ? {
+        letter: 'Tutte le lettere',
+        words: orderWords(perLetter.flatMap(s => s.words)),
+        combined: true
+      } : null;
+
+      return { sections: [combined, ...perLetter].filter(Boolean), total };
+    }, [pool, consultOrder, consultSearch]);
+
+    const filteredCount = total;
     const [openLetter, setOpenLetter] = useState(null);
     const [flipped, setFlipped] = useState({});
 
@@ -1673,16 +1697,46 @@ export default function LessicoGame() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
         <div className="max-w-5xl mx-auto pt-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex items-center justify-between">
               <button
                 onClick={() => setGameMode(null)}
                 className="text-slate-500 hover:text-slate-300 transition-colors"
               >
                 ← Menu
               </button>
-              <h2 className="text-3xl font-bold text-slate-100 mt-2">Consultazione Flashcard</h2>
-              <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
+            </div>
+            <div className="flex flex-wrap gap-4 items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-slate-100">Consultazione Flashcard</h2>
+                <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <select
+                  value={consultLetter}
+                  onChange={(e) => setConsultLetter(e.target.value)}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="all">Tutte le lettere</option>
+                  {'abcdefghijklmnopqrstuvwxyz'.split('').map(l => (
+                    <option key={l} value={l}>{l.toUpperCase()}</option>
+                  ))}
+                </select>
+                <select
+                  value={consultOrder}
+                  onChange={(e) => setConsultOrder(e.target.value)}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="random">Casuale</option>
+                  <option value="alpha" disabled={consultLetter !== 'all'}>Alfabetico</option>
+                </select>
+                <button
+                  onClick={() => { setConsultLetter('all'); setConsultOrder('random'); }}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1693,7 +1747,7 @@ export default function LessicoGame() {
           ) : (
             <div className="space-y-3">
               <p className="text-slate-500 text-sm mb-1 px-1">Casuale / tutte le parole — clicca sulla lettera per espandere</p>
-              {[combinedSection, ...sections].filter(Boolean).map(section => (
+              {sections.map(section => (
                 <div key={section.letter} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl">
                   <button
                     onClick={() => setOpenLetter(prev => prev === section.letter ? null : section.letter)}
@@ -1704,11 +1758,11 @@ export default function LessicoGame() {
                   </button>
                   {openLetter === section.letter && (
                     <div className="grid gap-4 md:grid-cols-2 px-4 pb-4">
-                      {section.words.map((word, idx) => {
+                      {section.words.map((word) => {
                         const isFlipped = flipped[word.term];
                         return (
                           <div
-                            key={`${word.term}-${idx}`}
+                            key={word.term}
                             className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:border-cyan-800/60 transition-colors cursor-pointer"
                             onClick={() => toggleFlip(word.term)}
                           >
