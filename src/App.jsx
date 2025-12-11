@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle } from 'lucide-react';
-import LogoYP from '../Logo YP.png';
-import LogoFoxHappy from '../Logo occhi aperti Yasmina.png';
-import LogoYasminaOcchi from '../Logo Yasmina occhi.png';
+import LogoVolpinaChiusi from '../volpina-occhi-chiusi.png';
+import LogoVolpinaOcchiAperti from '../volpina-occhi-aperti.png';
+import LogoVolpinaTestaAlzata from '../volpina-testa-alzata.png';
 import demoCSV from '../lessico completo.csv?raw';
 
 // Normalizza date al formato dd-mm-yy
@@ -190,6 +190,7 @@ export default function LessicoGame() {
   const [recentSince, setRecentSince] = useState('');
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [showUploadInfo, setShowUploadInfo] = useState(false);
 
   const computeChunkAvailability = (pool) => {
     const total = pool.length;
@@ -245,10 +246,17 @@ export default function LessicoGame() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const parsed = parseCSV(event.target.result);
-        setWords(parsed);
-        setShuffledWords([...parsed].sort(() => Math.random() - 0.5));
-        setDemoMode(false);
+        try {
+          const parsed = parseCSV(event.target.result);
+          if (!parsed.length) {
+            throw new Error('CSV vuoto o non compatibile');
+          }
+          setWords(parsed);
+          setShuffledWords([...parsed].sort(() => Math.random() - 0.5));
+          setDemoMode(false);
+        } catch (err) {
+          triggerSelectionWarning('File non compatibile. Esporta da Google Sheet come CSV con intestazione.');
+        }
       };
       reader.readAsText(file);
     }
@@ -502,10 +510,6 @@ export default function LessicoGame() {
     if (subsetMode === 'chunk') {
       const numChunks = Math.max(1, Math.floor(100 / chunkPercent));
       const safeChunkIndex = Math.min(chunkIndex, numChunks - 1);
-      // Avviso per dataset troppo piccoli
-      if (base.length < numChunks * 2) {
-        triggerSelectionWarning(`Tranche troppo piccola per questo set di parole: aumenta la percentuale o carica più parole.`);
-      }
       const grouped = {};
 
       base.forEach(word => {
@@ -515,25 +519,34 @@ export default function LessicoGame() {
       });
 
       const result = [];
+      let missingSlices = false;
       Object.values(grouped).forEach(group => {
         group.sort((a, b) => a.term.localeCompare(b.term, 'it', { sensitivity: 'base' }));
-      const chunkSize = Math.max(1, Math.ceil(group.length / numChunks));
-      const start = chunkSize * safeChunkIndex;
-      const end = safeChunkIndex === numChunks - 1 ? group.length : Math.min(group.length, start + chunkSize);
-      const slice = group.slice(start, end);
-      result.push(...slice);
-    });
+        const chunkSize = Math.max(1, Math.ceil(group.length / numChunks));
+        const start = chunkSize * safeChunkIndex;
+        if (start >= group.length) {
+          missingSlices = true;
+          return;
+        }
+        const end = safeChunkIndex === numChunks - 1 ? group.length : Math.min(group.length, start + chunkSize);
+        const slice = group.slice(start, end);
+        result.push(...slice);
+      });
 
-    // Se la tranche produce pochissime parole e il dataset è piccolo (es. file demo), mostra un avviso
-    const MIN_PER_TRANCHE = 2;
-    if (!result.length || result.length < MIN_PER_TRANCHE) {
-      triggerSelectionWarning(`Tranche troppo piccola: servono più parole per applicare ${chunkPercent}% per lettera (usa un filtro più ampio o carica un set più grande).`);
-      return base; // fallback al set di partenza
+      // Fallback: se per qualche lettera non c'è abbastanza materiale, usa tranche sul totale
+      if (missingSlices || result.length === 0) {
+        const ordered = [...base].sort((a, b) => a.term.localeCompare(b.term, 'it', { sensitivity: 'base' }));
+        const totalChunkSize = Math.max(1, Math.ceil(ordered.length / numChunks));
+        const start = totalChunkSize * safeChunkIndex;
+        const end = safeChunkIndex === numChunks - 1 ? ordered.length : Math.min(ordered.length, start + totalChunkSize);
+        const fallbackSlice = ordered.slice(start, end);
+        triggerSelectionWarning(`Tranche per lettera troppo piccola: uso tranche sul totale (${chunkPercent}%).`);
+        return fallbackSlice.length ? fallbackSlice : ordered;
+      }
+
+      // Se la tranche scelta è vuota (es. poche parole per lettera), fallback al set base
+      return result.length ? result : base;
     }
-
-  // Se la tranche scelta è vuota (es. poche parole per lettera), fallback al set base
-  return result.length ? result : base;
-}
 
     let finalSet = base;
     if (useRecent) {
@@ -1229,14 +1242,14 @@ export default function LessicoGame() {
             <img
               src={
                 foxVariant === 'feedback-ok'
-                  ? LogoYasminaOcchi
+                  ? LogoVolpinaTestaAlzata
                   : foxVariant === 'feedback-wrong'
-                  ? LogoFoxHappy
+                  ? LogoVolpinaOcchiAperti
                   : foxVariant === 'happy'
-                  ? LogoFoxHappy
+                  ? LogoVolpinaOcchiAperti
                   : foxVariant === 'alt'
-                  ? LogoYasminaOcchi
-                  : LogoYP
+                  ? LogoVolpinaTestaAlzata
+                  : LogoVolpinaChiusi
               }
               alt="Logo"
               className={`h-[84px] w-auto drop-shadow-xl transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
@@ -1246,14 +1259,27 @@ export default function LessicoGame() {
         <h1 className="text-3xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
         <p className="text-slate-400 mb-8">Impara parole nuove giocando!</p>
         
-        <label className="block cursor-pointer group">
-          <div className="border-2 border-dashed border-slate-600 rounded-2xl p-8 transition-all group-hover:border-cyan-700 group-hover:bg-slate-700/20">
-            <Upload className="w-12 h-12 text-slate-500 mx-auto mb-4 group-hover:text-cyan-600 transition-colors" />
-            <p className="text-slate-200 font-medium mb-2">Carica il tuo CSV</p>
-            <p className="text-slate-500 text-sm">Formato: parola, accento, definizione, etimologia, esempio, data_inserimento, errori(SI/NO)</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-slate-200 font-medium">
+            <p>Carica il tuo CSV</p>
+            <button
+              onClick={() => setShowUploadInfo(true)}
+              className="w-6 h-6 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+              aria-label="Info CSV"
+            >
+              i
+            </button>
           </div>
-          <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-        </label>
+          <label className="block cursor-pointer group">
+            <div className="border-2 border-dashed border-slate-600 rounded-2xl p-8 transition-all group-hover:border-cyan-700 group-hover:bg-slate-700/20">
+              <Upload className="w-12 h-12 text-slate-500 mx-auto mb-4 group-hover:text-cyan-600 transition-colors" />
+              <p className="text-slate-200 font-medium mb-2">Formato CSV con 12 colonne</p>
+              <p className="text-slate-500 text-sm">Separatore: virgola, UTF-8, prima riga di intestazione.</p>
+              <p className="text-slate-500 text-xs mt-1">Ordine colonne: Data, Termine, Accento, Definizione, Etimologia, Esempio1/2/3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</p>
+            </div>
+            <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+          </label>
+        </div>
 
         <div className="mt-6">
           <button
@@ -1291,14 +1317,14 @@ export default function LessicoGame() {
             <img
               src={
                 foxVariant === 'feedback-ok'
-                  ? LogoYasminaOcchi
+                  ? LogoVolpinaTestaAlzata
                   : foxVariant === 'feedback-wrong'
-                  ? LogoFoxHappy
+                  ? LogoVolpinaOcchiAperti
                   : foxVariant === 'happy'
-                  ? LogoFoxHappy
+                  ? LogoVolpinaOcchiAperti
                   : foxVariant === 'alt'
-                  ? LogoYasminaOcchi
-                  : LogoYP
+                  ? LogoVolpinaTestaAlzata
+                  : LogoVolpinaChiusi
               }
               alt="Logo"
               className={`h-[74px] w-auto drop-shadow-xl transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
@@ -1669,6 +1695,7 @@ export default function LessicoGame() {
                     Scarica
                   </button>
                 </div>
+                <p className="text-slate-500 text-xs">Suggerimento: rinomina il file aggiungendo la data di oggi per ricordare quale versione stai usando quando lo ricarichi.</p>
                 
                 <button
                   onClick={() => setWordsToReview([])}
@@ -1911,7 +1938,17 @@ export default function LessicoGame() {
         className="hover:scale-110 transition-transform"
       >
         <img
-          src={foxVariant === 'happy' ? LogoFoxHappy : foxVariant === 'alt' ? LogoYasminaOcchi : LogoYP}
+          src={
+            foxVariant === 'feedback-ok'
+              ? LogoVolpinaTestaAlzata
+              : foxVariant === 'feedback-wrong'
+              ? LogoVolpinaOcchiAperti
+              : foxVariant === 'happy'
+              ? LogoVolpinaOcchiAperti
+              : foxVariant === 'alt'
+              ? LogoVolpinaTestaAlzata
+              : LogoVolpinaChiusi
+          }
           alt="Logo"
           className={`h-[70px] w-auto transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
         />
@@ -2447,7 +2484,7 @@ export default function LessicoGame() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 flex items-center justify-center p-4">
       <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-center border border-slate-700/50">
         <div className="flex justify-center mb-4">
-          <img src={LogoFoxHappy} alt="Logo occhi aperti" className="h-[84px] w-auto drop-shadow-xl" />
+          <img src={LogoVolpinaOcchiAperti} alt="Logo occhi aperti" className="h-[84px] w-auto drop-shadow-xl" />
         </div>
         
         <h2 className="text-3xl font-bold text-slate-100 mb-6">Partita finita!</h2>
@@ -2900,6 +2937,34 @@ export default function LessicoGame() {
   // Render principale
   return (
     <>
+      {showUploadInfo && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowUploadInfo(false)}
+        >
+          <div
+            className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full p-6 text-slate-100 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-2xl font-bold">Come preparare il CSV</h2>
+              <button
+                onClick={() => setShowUploadInfo(false)}
+                className="text-slate-400 hover:text-slate-200 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2 text-sm leading-relaxed text-slate-200">
+              <p>Formato richiesto: 12 colonne, separatore virgola, UTF-8, prima riga di intestazione.</p>
+              <p>Ordine colonne: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</p>
+              <p>Da Google Sheet/Excel/LibreOffice/Numbers: esporta come CSV mantenendo l’intestazione. Evita separatore “;” o tabulazioni.</p>
+              <p>Data nel formato GG-MM-AA (es. 14-10-25) o lascia vuoto.</p>
+              <p>APPRESO: SI/NO. Errori: descrizione o “NO”.</p>
+            </div>
+          </div>
+        </div>
+      )}
       {showReviewPanel && <ReviewPanel />}
       {showSelectionPanel && <SelectionPanel />}
       {showInstructions && <InstructionsModal />}
