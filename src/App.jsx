@@ -837,7 +837,14 @@ export default function LessicoGame() {
 
   // Verifica per la modalità Frasi (usa la parola effettivamente rimossa dal testo)
   const checkPhraseAnswer = (target, baseTerm) => {
-    const candidates = [...buildVariants(target), ...buildVariants(baseTerm)];
+    const normalizedTarget = normalizeWord(target || '');
+    const normalizedBase = normalizeWord(baseTerm || '');
+    const candidates = [
+      normalizedTarget,
+      normalizedBase,
+      ...buildVariants(target),
+      ...buildVariants(baseTerm)
+    ];
     const answer = normalizeWord(fillBlankInput);
 
     if (candidates.includes(answer)) {
@@ -2007,9 +2014,12 @@ export default function LessicoGame() {
     }
 
     const phraseExample = useMemo(() => {
+      const exList = [word.example1, word.example2, word.example3].filter(Boolean);
+      if (exList.length === 0) return word.definition || '';
+      // Se manca la seconda o la terza, usa sempre la prima
+      if (exList.length < 3) return word.example1 || exList[0];
       const example = pickStableExample(word);
-      if (example) return example;
-      return word.definition || '';
+      return example || exList[0];
     }, [word, currentIndex]);
 
     const baseText = phraseExample;
