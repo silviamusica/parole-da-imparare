@@ -676,18 +676,8 @@ export default function LessicoGame() {
     const cards = [];
     selected.forEach((word, idx) => {
       cards.push({ id: `term-${idx}`, content: word.term, type: 'term', pairId: idx });
-      // Tronca in modo più intelligente: fino a 80 caratteri, alla fine di una parola
-      let truncated = word.definition;
-      if (truncated.length > 80) {
-        truncated = truncated.substring(0, 80);
-        const lastSpace = truncated.lastIndexOf(' ');
-        if (lastSpace > 60) {
-          truncated = truncated.substring(0, lastSpace) + '...';
-        } else {
-          truncated = truncated + '...';
-        }
-      }
-      cards.push({ id: `def-${idx}`, content: truncated, type: 'def', pairId: idx });
+      const definitionText = word.definition || '';
+      cards.push({ id: `def-${idx}`, content: definitionText, type: 'def', pairId: idx });
     });
     setMatchPairs(shuffleArray(cards));
     setMatchedPairs([]);
@@ -914,7 +904,12 @@ export default function LessicoGame() {
     setTimeout(() => setCopyFeedback(''), 2000);
   };
 
-  const getExamples = (word) => [word?.example1, word?.example2, word?.example3].filter(Boolean);
+  const getExamples = (word) =>
+    [word?.example1, word?.example2, word?.example3].filter(ex => {
+      if (!ex) return false;
+      const trimmed = `${ex}`.trim().toLowerCase();
+      return trimmed !== 'no' && trimmed !== 'n/a' && trimmed !== 'nessuno';
+    });
 
   // Seleziona un esempio in modo deterministico per evitare cambiamenti tra un render e l'altro
   const pickStableExample = (word) => {
@@ -2187,22 +2182,23 @@ export default function LessicoGame() {
             const isSelected = selectedCards.some(c => c.id === card.id);
             const isMatched = matchedPairs.includes(card.pairId);
             
+            const isDefinition = card.type !== 'term';
             return (
               <button
                 key={card.id}
                 onClick={() => handleCardClick(card)}
                 disabled={isMatched}
-                className={`p-4 rounded-xl min-h-[140px] max-h-[220px] overflow-hidden transition-all transform flex items-center justify-center ${
+                className={`p-4 rounded-xl min-h-[140px] max-h-[260px] overflow-hidden transition-all transform flex ${isDefinition ? 'items-start' : 'items-center'} justify-center ${
                   isMatched
                     ? 'bg-cyan-900/30 text-cyan-300 scale-95 border border-cyan-800/50'
                     : isSelected
                       ? 'bg-cyan-900 text-slate-100 scale-105 border border-cyan-800/50'
                       : 'bg-slate-700/30 text-slate-200 hover:bg-slate-700/50 border border-slate-600/50'
-                } ${card.type === 'term' ? 'font-bold text-base' : 'text-sm leading-relaxed'}`}
+                } ${card.type === 'term' ? 'font-bold text-base text-center' : 'text-sm leading-relaxed text-left'}`}
               >
                 <span
-                  className="text-center break-words"
-                  style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                  className={`break-words w-full ${isDefinition ? 'overflow-y-auto pr-1 max-h-[220px]' : ''}`}
+                  style={isDefinition ? {} : { display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                 >
                   {card.content}
                 </span>
