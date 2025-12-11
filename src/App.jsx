@@ -168,11 +168,18 @@ export default function LessicoGame() {
   const [showSelectionInfo, setShowSelectionInfo] = useState(false);
   const [consultOpenLetter, setConsultOpenLetter] = useState(null);
   const [consultFlashOpenLetter, setConsultFlashOpenLetter] = useState(null);
+  const [selectionWarning, setSelectionWarning] = useState(null);
+  const selectionTimeoutRef = useRef(null);
+  const triggerSelectionWarning = (message, duration = 5000) => {
+    if (selectionTimeoutRef.current) clearTimeout(selectionTimeoutRef.current);
+    setSelectionWarning(message);
+    selectionTimeoutRef.current = setTimeout(() => setSelectionWarning(null), duration);
+  };
   const [consultFlipped, setConsultFlipped] = useState({});
   const consultShuffleRef = useRef({});
   const [foxAnim, setFoxAnim] = useState(false);
   const foxAnimTimeout = useRef(null);
-  const [foxVariant, setFoxVariant] = useState('default'); // default | happy
+  const [foxVariant, setFoxVariant] = useState('default'); // default | happy | alt | feedback-ok | feedback-wrong
   const [foxCycleStep, setFoxCycleStep] = useState(0); // 0 -> alt, 1 -> happy
   const [foxAnimSize, setFoxAnimSize] = useState('big'); // small | big
   const audioCtxRef = useRef(null);
@@ -184,9 +191,35 @@ export default function LessicoGame() {
   const [recentSince, setRecentSince] = useState('');
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
 
+  const computeChunkAvailability = (pool) => {
+    const counts = {};
+    pool.forEach(w => {
+      const initial = (w.term?.[0] || '#').toLowerCase();
+      counts[initial] = (counts[initial] || 0) + 1;
+    });
+    const total = pool.length;
+    const availability = {};
+    [10, 20, 33, 50].forEach(p => {
+      const numChunks = Math.max(1, Math.floor(100 / p));
+      const enoughTotal = total >= numChunks;
+      const perLetterOk = Object.values(counts).every(c => c >= numChunks);
+      availability[p] = enoughTotal && perLetterOk;
+    });
+    return availability;
+  };
+
   const triggerAddedFeedback = (type = 'added') => {
     setAddedFeedback(type);
     setTimeout(() => setAddedFeedback(null), 900);
+  };
+
+  const showFoxFeedback = (correct) => {
+    const variant = correct ? 'feedback-ok' : 'feedback-wrong';
+    setFoxVariant(variant);
+    if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
+    foxAnimTimeout.current = setTimeout(() => {
+      setFoxVariant('default');
+    }, 2000);
   };
 
   // Effetti sonori semplici
@@ -474,6 +507,10 @@ export default function LessicoGame() {
     if (subsetMode === 'chunk') {
       const numChunks = Math.max(1, Math.floor(100 / chunkPercent));
       const safeChunkIndex = Math.min(chunkIndex, numChunks - 1);
+      // Avviso per dataset troppo piccoli
+      if (base.length < numChunks * 2) {
+        triggerSelectionWarning(`Tranche troppo piccola per questo set di parole: aumenta la percentuale o carica più parole.`);
+      }
       const grouped = {};
 
       base.forEach(word => {
@@ -485,17 +522,23 @@ export default function LessicoGame() {
       const result = [];
       Object.values(grouped).forEach(group => {
         group.sort((a, b) => a.term.localeCompare(b.term, 'it', { sensitivity: 'base' }));
-        const startPerc = chunkPercent * safeChunkIndex;
-        const endPerc = safeChunkIndex === numChunks - 1 ? 100 : chunkPercent * (safeChunkIndex + 1);
-        const start = Math.floor((startPerc / 100) * group.length);
-        const end = safeChunkIndex === numChunks - 1 ? group.length : Math.floor((endPerc / 100) * group.length);
-        const slice = group.slice(start, end);
-        result.push(...slice);
-      });
+      const chunkSize = Math.max(1, Math.ceil(group.length / numChunks));
+      const start = chunkSize * safeChunkIndex;
+      const end = safeChunkIndex === numChunks - 1 ? group.length : Math.min(group.length, start + chunkSize);
+      const slice = group.slice(start, end);
+      result.push(...slice);
+    });
 
-      // Se la tranche scelta è vuota (es. poche parole per lettera), fallback al set base
-      return result.length ? result : base;
+    // Se la tranche produce pochissime parole e il dataset è piccolo (es. file demo), mostra un avviso
+    const MIN_PER_TRANCHE = 2;
+    if (!result.length || result.length < MIN_PER_TRANCHE) {
+      triggerSelectionWarning(`Tranche troppo piccola: servono più parole per applicare ${chunkPercent}% per lettera (usa un filtro più ampio o carica un set più grande).`);
+      return base; // fallback al set di partenza
     }
+
+  // Se la tranche scelta è vuota (es. poche parole per lettera), fallback al set base
+  return result.length ? result : base;
+}
 
     let finalSet = base;
     if (useRecent) {
@@ -525,6 +568,8 @@ export default function LessicoGame() {
     return finalSet;
   }, [words, wordsToReview, subsetMode, chunkPercent, chunkIndex, onlyWrongSubset, learnedFilter, useRecent, recentLimit, recentMode, recentSince]);
 
+  const filteredPool = useMemo(() => getFilteredWords(), [getFilteredWords]);
+
   const getWordPool = useCallback(() => shuffleArray(getFilteredWords()), [getFilteredWords]);
 
   const InstructionsModal = () => (
@@ -546,14 +591,40 @@ export default function LessicoGame() {
           </button>
         </div>
         <div className="space-y-3 text-sm text-slate-200 leading-relaxed">
-          <p>Prima di partire scegli in alto i filtri/tranche: così studi solo il blocco che ti serve. Se lasci “tutte”, userai l’intero database. Puoi anche filtrare le parole più recenti (numero, ultime 24h/7 giorni/ultimo mese, o da una data specifica).</p>
-          <p><strong>Tab Studio</strong>: qui puoi studiare in modo guidato.</p>
-          <div className="pl-4 space-y-2 text-slate-300">
-            <p>• <strong>Vista Schede</strong>: elenco delle parole con definizione, etimologia ed esempi. Da qui puoi aggiungere parole alla sezione “Parole da rivedere”.</p>
-            <p>• <strong>Vista Flashcard</strong>: vedi solo la parola; clicca per girare e leggere i dettagli, poi decidi se aggiungerla alla sezione “Parole da rivedere”.</p>
+          <div>
+            <p className="font-semibold">1. 🔍 Filtri</p>
+            <p>Se lasci “tutte”, usi l’intero database. Puoi filtrare per:</p>
+            <ul className="list-disc list-inside space-y-1 mt-1 text-slate-300">
+              <li>📅 data di inserimento nel database</li>
+              <li>🧩 tranche</li>
+              <li>✅ apprese / ❌ non apprese</li>
+              <li>🔁 da rivedere (errori o parole segnate durante il gioco)</li>
+            </ul>
           </div>
-          <p><strong>Parole da rivedere</strong>: raccoglie gli errori commessi durante il gioco o le parole selezionate durante lo studio. Puoi scaricarle (CSV/testo) per salvarle, e con il CSV completo puoi ricaricare la sessione seguente mantenendo gli errori segnati e filtrare su “Solo sbagliate” o “Appreso” (SI/NO) per ripassare in modo mirato. Quando le impari, puoi rimuoverle dalla sezione “Parole da rivedere”.</p>
-          <p><strong>Tab Giochi</strong>: Quiz, Speed, Completa, Memory usano lo stesso set filtrato: perfetti per ripassare dopo lo studio.</p>
+
+          <div className="space-y-1">
+            <p className="font-semibold">2. 📚 Tab Studio</p>
+            <p>Puoi studiare in due modi:</p>
+            <p>1️⃣ <strong>Vista Schede</strong>: elenco con definizione, etimologia ed esempi. Da qui puoi aggiungere parole alla sezione “Parole da rivedere”.</p>
+            <p>2️⃣ <strong>Vista Flashcard</strong>: vedi la parola, clicchi per girarla e leggere i dettagli; poi puoi decidere se aggiungerla a “Parole da rivedere”.</p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="font-semibold">3. 🔁 Parole da rivedere</p>
+            <p>Raccoglie gli errori commessi nei giochi o le parole selezionate nello studio.</p>
+            <p>Funzioni:</p>
+            <ul className="list-disc list-inside space-y-1 text-slate-300">
+              <li>💾 scarica l’elenco in CSV o testo (il CSV compila “appreso” con “NO” per le parole sbagliate)</li>
+              <li>📂 ricarica quel CSV in una nuova sessione per ritrovare gli errori segnati</li>
+              <li>🎯 filtra per “Da rivedere” o per stato “Appreso” (SÌ/NO) per un ripasso mirato</li>
+            </ul>
+            <p className="mt-1">Quando una parola è acquisita, rimuovila da “Parole da rivedere”.</p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="font-semibold">4. 🎮 Tab Giochi</p>
+            <p>Quiz, Speed, Completa, Memory usano sempre il set filtrato all’inizio. Ideali per ripassare dopo lo studio.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -561,6 +632,11 @@ export default function LessicoGame() {
 
   // Mostra selezione numero domande
   const selectMode = (mode) => {
+    const available = getFilteredWords();
+    if (!available.length) {
+      triggerSelectionWarning('Nessuna parola selezionata');
+      return;
+    }
     if (mode === 'consultationFlashcard') {
       startConsultationFlashcard();
       return;
@@ -581,13 +657,14 @@ export default function LessicoGame() {
   };
 
   const startConsultation = () => {
-    const pool = getFilteredWords().sort((a, b) =>
-      (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
-    );
-    if (!pool.length) {
-      alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
+    const current = getFilteredWords();
+    if (!current.length) {
+      triggerSelectionWarning('Nessuna parola selezionata');
       return;
     }
+    const pool = current.sort((a, b) =>
+      (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
+    );
     setActivePool(pool);
     setShuffledWords(pool);
     setGameMode('consultation');
@@ -602,13 +679,15 @@ export default function LessicoGame() {
   };
 
   const startConsultationFlashcard = () => {
-    const pool = getFilteredWords().sort((a, b) =>
-      (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
-    );
-    if (!pool.length) {
-      alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
+    const current = getFilteredWords();
+    if (!current.length) {
+      setSelectionWarning('Nessuna parola selezionata');
+      setTimeout(() => setSelectionWarning(null), 2000);
       return;
     }
+    const pool = current.sort((a, b) =>
+      (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
+    );
     setActivePool(pool);
     setShuffledWords(pool);
     setGameMode('consultationFlashcard');
@@ -625,11 +704,17 @@ export default function LessicoGame() {
   // Inizia nuovo gioco
   const startGame = (mode, limit) => {
     const basePool = getFilteredWords();
+    if (!basePool.length) {
+      triggerSelectionWarning('Nessuna parola selezionata');
+      setShowModeSelection(false);
+      setPendingMode(null);
+      return;
+    }
     const actualLimit = limit ?? questionLimit ?? basePool.length;
     const minNeeded = mode === 'match' ? 6 : 1;
 
     if (basePool.length < minNeeded) {
-      alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
+      triggerSelectionWarning('Nessuna parola selezionata');
       setShowModeSelection(false);
       setPendingMode(null);
       return;
@@ -751,9 +836,24 @@ export default function LessicoGame() {
     }
   };
 
+  // Permetti di avanzare con Enter quando il feedback è visibile (waitingForContinue)
+  useEffect(() => {
+    const handler = (e) => {
+      if (!waitingForContinue) return;
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      setWaitingForContinue(false);
+      setShowCorrectAnswer(null);
+      nextWord();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [waitingForContinue, nextWord]);
+
   // Gestione risposta corretta
   const handleCorrectAnswer = () => {
     setIsCorrect(true);
+    showFoxFeedback(true);
     setStreak(streak + 1);
     setMaxStreak(Math.max(maxStreak, streak + 1));
     setGameStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
@@ -776,6 +876,7 @@ export default function LessicoGame() {
     setStreak(0);
     setLives(Math.max(0, lives - 1));
     setGameStats(prev => ({ ...prev, wrong: prev.wrong + 1, total: prev.total + 1 }));
+    showFoxFeedback(false);
     setIsTimerRunning(false);
     playSound('bad');
     
@@ -883,7 +984,8 @@ export default function LessicoGame() {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere (nuovo schema)
       const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
-      const rows = words.map(w => {
+      const source = wordsToReview.length ? wordsToReview : words;
+      const rows = source.map(w => {
         const errorValue = (() => {
           if (w.commonErrors) return w.commonErrors;
           if (reviewTerms.has(w.term)) return 'Da rivedere';
@@ -1007,6 +1109,7 @@ export default function LessicoGame() {
 
   // Componente per mostrare risposta corretta e pulsante continua
   const CorrectAnswerDisplay = ({ correctWord }) => {
+    showFoxFeedback(true);
     return (
       <div className="mt-6 space-y-4">
         <div className="p-4 bg-cyan-950/30 border border-cyan-900/50 rounded-xl space-y-2">
@@ -1118,7 +1221,17 @@ export default function LessicoGame() {
             aria-label="Logo"
           >
             <img
-              src={foxVariant === 'happy' ? LogoFoxHappy : foxVariant === 'alt' ? LogoYasminaOcchi : LogoYP}
+              src={
+                foxVariant === 'feedback-ok'
+                  ? LogoYasminaOcchi
+                  : foxVariant === 'feedback-wrong'
+                  ? LogoFoxHappy
+                  : foxVariant === 'happy'
+                  ? LogoFoxHappy
+                  : foxVariant === 'alt'
+                  ? LogoYasminaOcchi
+                  : LogoYP
+              }
               alt="Logo"
               className={`h-[84px] w-auto drop-shadow-xl transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
             />
@@ -1170,21 +1283,31 @@ export default function LessicoGame() {
               className="hover:scale-105 transition-transform"
             >
             <img
-              src={foxVariant === 'happy' ? LogoFoxHappy : foxVariant === 'alt' ? LogoYasminaOcchi : LogoYP}
+              src={
+                foxVariant === 'feedback-ok'
+                  ? LogoYasminaOcchi
+                  : foxVariant === 'feedback-wrong'
+                  ? LogoFoxHappy
+                  : foxVariant === 'happy'
+                  ? LogoFoxHappy
+                  : foxVariant === 'alt'
+                  ? LogoYasminaOcchi
+                  : LogoYP
+              }
               alt="Logo"
               className={`h-[74px] w-auto drop-shadow-xl transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
             />
           </button>
         </div>
           <h1 className="text-4xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
-          <div className="flex items-center justify-center gap-2 text-slate-400">
-            <p>{words.length} parole caricate</p>
+          <div className="flex items-center justify-center gap-3 text-slate-400">
+            <p>{filteredPool.length} parole disponibili</p>
             <button
               onClick={() => setShowInstructions(true)}
-              className="w-5 h-5 rounded-full border border-slate-500 text-slate-300 text-xs leading-none flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+              className="text-slate-200 underline decoration-dotted underline-offset-4 hover:text-cyan-300 text-sm"
               aria-label="Istruzioni"
             >
-              i
+              Istruzioni
             </button>
           </div>
         </div>
@@ -1203,7 +1326,17 @@ export default function LessicoGame() {
                   i
                 </button>
               </p>
-              <p className="text-slate-400 text-sm mt-1">Disponibili: {getFilteredWords().length || words.length}</p>
+          <p className="text-slate-400 text-sm mt-1">
+            Disponibili: {filteredPool.length}
+            {learnedFilter !== 'all' && (
+              <span className="text-xs text-cyan-300 ml-2">
+                ({learnedFilter === 'yes' ? 'solo apprese' : 'solo da apprendere'})
+              </span>
+            )}
+            {onlyWrongSubset && (
+              <span className="text-xs text-orange-300 ml-2">(solo sbagliate)</span>
+            )}
+          </p>
             </div>
             <button
               onClick={() => setShowSelectionPanel(true)}
@@ -1568,30 +1701,47 @@ export default function LessicoGame() {
           </div>
 
           <div className="space-y-3">
-            <p className="text-slate-400 text-sm">Configura tranche, parole da rivedere/apprese e parole più recenti da studiare.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <p className="text-slate-400 text-sm">Configura tranche, parole da rivedere/apprese e parole più recenti da studiare.</p>
+              <p className="text-slate-300 text-sm">
+                Selezionate: <span className="font-semibold text-cyan-300">{filteredPool.length}</span>
+              </p>
+            </div>
             <div className="grid gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select
-                  value={subsetMode === 'chunk' ? `chunk-${chunkPercent}` : 'all'}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'all') {
-                      setSubsetMode('all');
-                    } else {
-                      const perc = parseInt(val.split('-')[1], 10) || 10;
-                      setSubsetMode('chunk');
-                      setChunkPercent(perc);
-                      setChunkIndex(0);
-                    }
-                  }}
+                {/** Calcolo disponibilità tranche */}
+                {(() => {
+                  const options = [10, 20, 33, 50];
+                  const availability = computeChunkAvailability(filteredPool);
+                  return (
+                  <select
+                    value={subsetMode === 'chunk' ? `chunk-${chunkPercent}` : 'all'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'all') {
+                        setSubsetMode('all');
+                      } else {
+                        const perc = parseInt(val.split('-')[1], 10) || 10;
+                        if (!availability[perc]) {
+                          triggerSelectionWarning('Tranche disabilitata: servono più parole (almeno 1 per fetta per lettera).');
+                          setSubsetMode('all');
+                          return;
+                        }
+                        setSubsetMode('chunk');
+                        setChunkPercent(perc);
+                        setChunkIndex(0);
+                      }
+                    }}
                   className="bg-slate-800/60 border border-slate-700 text-slate-100 rounded-xl px-3 py-2"
-                >
-                  <option value="all">Tutte (casuale)</option>
-                  <option value="chunk-10">Tranche 10%</option>
-                  <option value="chunk-20">Tranche 20%</option>
-                  <option value="chunk-33">Tranche 33%</option>
-                  <option value="chunk-50">Tranche 50%</option>
-                </select>
+                  >
+                    <option value="all">Tutte (casuale)</option>
+                    <option value="chunk-10" disabled={!availability[10]}>Tranche 10%</option>
+                    <option value="chunk-20" disabled={!availability[20]}>Tranche 20%</option>
+                    <option value="chunk-33" disabled={!availability[33]}>Tranche 33%</option>
+                    <option value="chunk-50" disabled={!availability[50]}>Tranche 50%</option>
+                  </select>
+                  );
+                })()}
 
                 {subsetMode === 'chunk' && (
                   <select
@@ -1610,7 +1760,7 @@ export default function LessicoGame() {
 
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
-                  <span>Solo sbagliate</span>
+                  <span>Da rivedere</span>
                   <span className="text-xs text-slate-400 ml-1">({wordsToReview.length})</span>
                 </div>
                 <input
@@ -1772,11 +1922,11 @@ export default function LessicoGame() {
           <GameHeader />
           
           <div className="text-center text-slate-400 mb-4">
-            {currentIndex + 1} / {shuffledWords.length}
+            {Math.min(currentIndex + 1, shuffledWords.length)} / {filteredPool.length || shuffledWords.length}
           </div>
 
           <div 
-            onClick={() => setShowAnswer(!showAnswer)}
+            onClick={() => { setShowAnswer(!showAnswer); if (!showAnswer) showFoxFeedback(true); }}
             className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 min-h-[300px] flex flex-col justify-center cursor-pointer border border-slate-700/50 transform transition-all hover:scale-105"
           >
             {!showAnswer ? (
@@ -2020,9 +2170,9 @@ export default function LessicoGame() {
                   value={fillBlankInput}
                   onChange={(e) => setFillBlankInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && isCorrect === null) {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
                       e.preventDefault();
-                      checkFillBlank();
+                      e.currentTarget.select();
                     }
                   }}
                   placeholder="Scrivi la parola..."
@@ -2181,9 +2331,9 @@ export default function LessicoGame() {
                   value={fillBlankInput}
                   onChange={(e) => setFillBlankInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && isCorrect === null) {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
                       e.preventDefault();
-                      checkFillBlank();
+                      e.currentTarget.select();
                     }
                   }}
                   placeholder="Scrivi la parola..."
@@ -2193,7 +2343,7 @@ export default function LessicoGame() {
                 />
                 <button
                   type="button"
-                  onClick={checkFillBlank}
+                  onClick={() => checkPhraseAnswer(targetWord, word.term)}
                   disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
                   className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -2739,6 +2889,20 @@ export default function LessicoGame() {
       {addedFeedback && (
         <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl shadow-lg border z-50 animate-bounce ${addedFeedback === 'duplicate' ? 'bg-amber-500 text-slate-900 border-amber-600' : 'bg-emerald-500 text-slate-900 border-emerald-600'}`}>
           {addedFeedback === 'duplicate' ? 'Già inserita' : 'Aggiunta ai da rivedere ✓'}
+        </div>
+      )}
+      {selectionWarning && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl shadow-lg border z-50 bg-red-600 text-slate-50 border-red-700 flex items-center gap-3">
+          <span>{selectionWarning}</span>
+          <button
+            className="text-sm bg-red-800/70 px-2 py-1 rounded border border-red-700 hover:bg-red-700"
+            onClick={() => {
+              if (selectionTimeoutRef.current) clearTimeout(selectionTimeoutRef.current);
+              setSelectionWarning(null);
+            }}
+          >
+            OK
+          </button>
         </div>
       )}
       {words.length === 0 ? <UploadScreen /> :
