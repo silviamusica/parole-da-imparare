@@ -93,7 +93,8 @@ export default function LessicoGame() {
   const [studyView, setStudyView] = useState('list'); // list | flashcard
   const [showInstructions, setShowInstructions] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(null); // null | 'added' | 'duplicate'
-  const [showReviewInfo, setShowReviewInfo] = useState(false);
+  const [showReviewHelp, setShowReviewHelp] = useState(false);
+  const [showSelectionInfo, setShowSelectionInfo] = useState(false);
   const [consultOpenLetter, setConsultOpenLetter] = useState(null);
   const [consultFlashOpenLetter, setConsultFlashOpenLetter] = useState(null);
   const [consultFlipped, setConsultFlipped] = useState({});
@@ -181,6 +182,51 @@ export default function LessicoGame() {
         setShuffledWords([...parsed].sort(() => Math.random() - 0.5));
       };
       reader.readAsText(file);
+    }
+  };
+
+  // Demo mode: carica 20 parole dal CSV incluso
+  const loadDemoWords = async () => {
+    try {
+      const res = await fetch('/lessico%20completo.csv');
+      if (!res.ok) throw new Error('Fetch failed');
+      const text = await res.text();
+      const parsed = parseCSV(text);
+
+      const buildBalancedDemo = (list, target = 20) => {
+        const grouped = {};
+        list.forEach(w => {
+          const letter = (w.term?.[0] || '#').toLowerCase();
+          if (!grouped[letter]) grouped[letter] = [];
+          grouped[letter].push(w);
+        });
+        // Shuffle ogni gruppo e l'ordine delle lettere per avere set diversi ad ogni demo
+        Object.keys(grouped).forEach(letter => {
+          grouped[letter] = shuffleArray(grouped[letter]);
+        });
+        const letters = shuffleArray(Object.keys(grouped));
+        const demo = [];
+        let idx = 0;
+        while (demo.length < target && letters.some(l => grouped[l].length > idx)) {
+          letters.forEach(l => {
+            if (demo.length >= target) return;
+            const arr = grouped[l];
+            if (arr.length > idx) demo.push(arr[idx]);
+          });
+          idx += 1;
+        }
+        return demo;
+      };
+
+      const demoSet = buildBalancedDemo(parsed, 20);
+      if (!demoSet.length) {
+        alert('Demo non disponibile.');
+        return;
+      }
+      setWords(demoSet);
+      setShuffledWords([...demoSet].sort(() => Math.random() - 0.5));
+    } catch (err) {
+      alert('Demo non disponibile.');
     }
   };
 
@@ -368,10 +414,10 @@ export default function LessicoGame() {
           <p>Prima di partire scegli in alto i filtri/tranche: così studi solo il blocco che ti serve. Se lasci “tutte”, userai l’intero database.</p>
           <p><strong>Tab Studio</strong>: qui puoi studiare in modo guidato.</p>
           <div className="pl-4 space-y-2 text-slate-300">
-            <p>• <strong>Vista Schede</strong>: elenco delle parole con definizione, etimologia ed esempi. Da qui puoi aggiungere parole alla lista “da rivedere”.</p>
-            <p>• <strong>Vista Flashcard</strong>: vedi solo la parola; clicca per girare e leggere i dettagli, poi decidi se aggiungerla ai “da rivedere”.</p>
+            <p>• <strong>Vista Schede</strong>: elenco delle parole con definizione, etimologia ed esempi. Da qui puoi aggiungere parole alla sezione “Parole da rivedere”.</p>
+            <p>• <strong>Vista Flashcard</strong>: vedi solo la parola; clicca per girare e leggere i dettagli, poi decidi se aggiungerla alla sezione “Parole da rivedere”.</p>
           </div>
-          <p><strong>Parole da rivedere</strong>: raccoglie gli errori commessi durante il gioco o le parole selezionate durante lo studio. Puoi scaricarle (CSV/testo) per salvarle, e con il CSV completo puoi ricaricare la sessione seguente mantenendo gli errori segnati e filtrare su “Solo sbagliate”/“Solo errori CSV” per ripassare in modo mirato. Quando le impari, puoi rimuoverle dalla lista.</p>
+          <p><strong>Parole da rivedere</strong>: raccoglie gli errori commessi durante il gioco o le parole selezionate durante lo studio. Puoi scaricarle (CSV/testo) per salvarle, e con il CSV completo puoi ricaricare la sessione seguente mantenendo gli errori segnati e filtrare su “Solo sbagliate”/“Solo errori CSV” per ripassare in modo mirato. Quando le impari, puoi rimuoverle dalla sezione “Parole da rivedere”.</p>
           <p><strong>Tab Giochi</strong>: Quiz, Speed, Completa, Memory usano lo stesso set filtrato: perfetti per ripassare dopo lo studio.</p>
         </div>
       </div>
@@ -493,12 +539,12 @@ export default function LessicoGame() {
     const cards = [];
     selected.forEach((word, idx) => {
       cards.push({ id: `term-${idx}`, content: word.term, type: 'term', pairId: idx });
-      // Tronca in modo più intelligente: fino a 100 caratteri, alla fine di una parola
+      // Tronca in modo più intelligente: fino a 80 caratteri, alla fine di una parola
       let truncated = word.definition;
-      if (truncated.length > 100) {
-        truncated = truncated.substring(0, 100);
+      if (truncated.length > 80) {
+        truncated = truncated.substring(0, 80);
         const lastSpace = truncated.lastIndexOf(' ');
-        if (lastSpace > 80) {
+        if (lastSpace > 60) {
           truncated = truncated.substring(0, lastSpace) + '...';
         } else {
           truncated = truncated + '...';
@@ -622,16 +668,18 @@ export default function LessicoGame() {
     setSelectedCards(newSelected);
     
     if (newSelected.length === 2) {
-      setMoves(moves + 1);
+      setMoves(prev => prev + 1);
       
       if (newSelected[0].pairId === newSelected[1].pairId && newSelected[0].type !== newSelected[1].type) {
-        setMatchedPairs([...matchedPairs, card.pairId]);
+        setMatchedPairs(prev => [...prev, card.pairId]);
         setSelectedCards([]);
+        setGameStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
         
         if (matchedPairs.length + 1 === 6) {
           setTimeout(() => setGameMode('results'), 1000);
         }
       } else {
+        setGameStats(prev => ({ ...prev, wrong: prev.wrong + 1, total: prev.total + 1 }));
         setTimeout(() => setSelectedCards([]), 800);
       }
     }
@@ -656,12 +704,6 @@ export default function LessicoGame() {
         `${w.term}${w.accent ? ` (${w.accent})` : ''}\n${w.definition}\n${w.etymology ? `Etimologia: ${w.etymology}\n` : ''}${w.example ? `Esempio: ${w.example}\n` : ''}${w.insertedAt ? `Data inserimento: ${w.insertedAt}\n` : ''}Errori: SI`
       ).join('\n---\n\n');
     } else if (format === 'csv') {
-      const header = 'Parola,Accento,Definizione,Etimologia,Esempio,Data_Inserimento,Errori\n';
-      const rows = wordsToReview.map(w => 
-        `"${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example || ''}","${w.insertedAt || ''}","SI"`
-      ).join('\n');
-      return header + rows;
-    } else if (format === 'csv_full') {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere
       const header = 'Parola,Accento,Definizione,Etimologia,Esempio,Data_Inserimento,Errori\n';
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
@@ -669,6 +711,9 @@ export default function LessicoGame() {
         `"${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example || ''}","${w.insertedAt || ''}","${reviewTerms.has(w.term) ? 'SI' : (w.errorFlag || 'NO')}"`
       ).join('\n');
       return header + rows;
+    } else if (format === 'csv_empty') {
+      // CSV vuoto con intestazioni
+      return 'Parola,Accento,Definizione,Etimologia,Esempio,Data_Inserimento,Errori\n';
     } else if (format === 'list') {
       return wordsToReview.map(w => `• ${w.term}${w.accent ? ` (${w.accent})` : ''}: ${w.definition}`).join('\n');
     }
@@ -740,10 +785,54 @@ export default function LessicoGame() {
   const InfoTooltip = ({ text }) => (
     <span className="relative group inline-flex items-center">
       <HelpCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-200 transition-colors" />
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap bg-slate-900 text-slate-100 text-[11px] px-2 py-1 rounded-lg border border-slate-700 shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 max-w-[200px] bg-slate-900 text-slate-100 text-[11px] px-2 py-1 rounded-lg border border-slate-700 shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition text-center z-50">
         {text}
       </span>
     </span>
+  );
+
+  const SelectionInfoModal = () => (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full p-6 text-slate-100 shadow-2xl">
+        <div className="flex items-start justify-between mb-4">
+          <h2 className="text-2xl font-bold">Come funzionano i filtri</h2>
+          <button
+            onClick={() => setShowSelectionInfo(false)}
+            className="text-slate-400 hover:text-slate-200 text-xl"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="space-y-3 text-sm leading-relaxed text-slate-200">
+          <p><strong>Tranche</strong>: scegli una fetta del database per lettera (10/20/33/50%). Es: 10% prende il primo 10% di ogni lettera; puoi selezionare 1ª, 2ª, ecc. fetta per studiare a blocchi.</p>
+          <p><strong>Solo sbagliate</strong>: usa solo le parole che hai aggiunto a “Da rivedere”. Perfetto per ripassare gli errori segnalati in gioco o studio.</p>
+          <p><strong>Solo errori CSV</strong>: usa solo le parole marcate “SI” nel CSV. Scarica il CSV degli errori, ricaricalo e spunta qui per ripassare solo quelle, mantenendo lo storico.</p>
+          <p><strong>Combinazioni</strong>: prima si applica la tranche (blocchi per lettera), poi le spunte restringono ulteriormente il set selezionato.</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ReviewInfoModal = () => (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full p-6 text-slate-100 shadow-2xl">
+        <div className="flex items-start justify-between mb-4">
+          <h2 className="text-2xl font-bold">Sezione “Parole da rivedere”</h2>
+          <button
+            onClick={() => setShowReviewHelp(false)}
+            className="text-slate-400 hover:text-slate-200 text-xl"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="space-y-3 text-sm leading-relaxed text-slate-200">
+          <p>Qui finiscono le parole sbagliate in gioco o quelle che hai segnato nello studio. Usa “Svuota lista” per ripulire quando le hai imparate.</p>
+          <p>Puoi scaricare due formati:</p>
+          <p><strong>TXT</strong>: solo elenco delle parole da rivedere/errori.</p>
+          <p><strong>CSV completo con errori/da rivedere</strong>: tutte le parole del database con la colonna “Errori” già compilata (SI per le parole da rivedere). Puoi ricaricarlo per ritrovare gli errori marcati e continuare a tracciare i progressi.</p>
+        </div>
+      </div>
+    </div>
   );
 
   // Componente Upload
@@ -775,6 +864,24 @@ export default function LessicoGame() {
           </div>
           <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
         </label>
+
+        <div className="mt-6">
+          <button
+            onClick={loadDemoWords}
+            className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-100 px-4 py-3 rounded-xl border border-slate-700/60 transition-colors"
+          >
+            Prova demo (20 parole)
+          </button>
+          <p className="text-slate-500 text-xs mt-2">Se non hai ancora un file tuo, gioca con un set di esempio.</p>
+
+          <button
+            onClick={() => downloadFile('csv_empty')}
+            className="w-full mt-3 bg-slate-800/60 hover:bg-slate-800 text-slate-100 px-4 py-3 rounded-xl border border-slate-700/60 transition-colors"
+          >
+            Scarica l'elenco vuoto
+          </button>
+          <p className="text-slate-500 text-xs mt-2">Scarica il modello vuoto e compila con le tue parole.</p>
+        </div>
       </div>
     </div>
   );
@@ -819,15 +926,19 @@ export default function LessicoGame() {
         <div className="bg-slate-800/50 border border-slate-700/60 p-6 rounded-3xl mb-6 shadow-xl">
             <div className="grid gap-5 lg:gap-6 md:grid-cols-[1.1fr_2fr] items-start">
             <div className="space-y-1">
-              <p className="text-slate-200 font-bold text-lg">Selezione parole</p>
+              <p className="text-slate-200 font-bold text-lg flex items-center gap-2">
+                Selezione parole
+                <button
+                  type="button"
+                  onClick={() => setShowSelectionInfo(true)}
+                  className="w-5 h-5 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+                  aria-label="Info selezione parole"
+                >
+                  i
+                </button>
+              </p>
               <div className="text-slate-500 text-sm leading-snug flex items-center gap-2">
                 <span>Scegli la tranche</span>
-                <div className="relative group">
-                  <span className="w-4 h-4 rounded-full border border-slate-500 text-slate-300 text-[10px] leading-none flex items-center justify-center">i</span>
-                  <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-80 bg-slate-900 text-slate-100 text-xs rounded-xl p-3 border border-slate-700 shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition z-50">
-                    Scegli quale porzione studiare dell’intero database (10%, 20%, 33%, 50%). Per ogni lettera viene selezionata quella percentuale e mescolata (es. 10% prende il 10% di A, 10% di B, ecc.). Puoi anche scegliere quale parte della tranche (prima, seconda, terza…) per avanzare in modo progressivo. In alternativa puoi usare tutto il database (sconsigliato se è molto grande), solo le parole sbagliate nella sessione, o quelle segnate come errori nel CSV.
-                  </div>
-                </div>
               </div>
               <p className="text-slate-400 text-sm mt-2">
                 Disponibili: {getFilteredWords().length || words.length}
@@ -873,7 +984,6 @@ export default function LessicoGame() {
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner w-full">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Solo sbagliate</span>
-                  <InfoTooltip text="Usa solo le parole già aggiunte a 'Da rivedere'." />
                   <span className="text-xs text-slate-400 ml-1">({wordsToReview.length})</span>
                 </div>
                 <input
@@ -887,7 +997,6 @@ export default function LessicoGame() {
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner w-full">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Solo errori CSV</span>
-                  <InfoTooltip text="Scarica il CSV degli errori, poi ricaricalo per esercitarti e tenere traccia." />
                 </div>
                 <input
                   type="checkbox"
@@ -896,6 +1005,7 @@ export default function LessicoGame() {
                   className="accent-cyan-500 h-4 w-4"
                 />
               </label>
+
             </div>
           </div>
         </div>
@@ -973,7 +1083,7 @@ export default function LessicoGame() {
               icon={<Brain className="w-8 h-8" />}
               title="Flashcard"
               description="Studia le parole una alla volta"
-              color="from-slate-700 to-slate-800"
+              color="from-slate-600 to-slate-800"
               onClick={() => selectMode('flashcard')}
             />
             <GameModeCard
@@ -994,14 +1104,14 @@ export default function LessicoGame() {
               icon={<Sparkles className="w-8 h-8" />}
               title="Completa"
               description="Scrivi la parola dalla definizione"
-              color="from-teal-900 to-cyan-950"
+              color="from-blue-950 to-slate-950"
               onClick={() => selectMode('fillBlank')}
             />
             <GameModeCard
               icon={<Shuffle className="w-8 h-8" />}
               title="Memory Match"
               description="Abbina parole e definizioni"
-              color="from-zinc-800 to-slate-900"
+              color="from-slate-950 to-black"
               onClick={() => selectMode('match')}
             />
             {wordsToReview.length > 0 && (
@@ -1124,20 +1234,16 @@ export default function LessicoGame() {
       <div className="min-h-screen flex items-center justify-center p-4 py-8">
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl max-w-2xl w-full border border-slate-700/50 flex flex-col max-h-[92vh]">
           <div className="p-5 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 gap-3">
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
               <h2 className="text-2xl font-bold text-slate-100">📚 Parole da rivedere</h2>
-              <div
-                className="relative"
-                onMouseEnter={() => setShowReviewInfo(true)}
-                onMouseLeave={() => setShowReviewInfo(false)}
+              <button
+                type="button"
+                onClick={() => setShowReviewHelp(true)}
+                className="w-5 h-5 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+                aria-label="Info Parole da rivedere"
               >
-                <HelpCircle className="w-5 h-5 text-slate-400 hover:text-slate-200 cursor-pointer" />
-                {showReviewInfo && (
-                  <div className="absolute z-50 top-6 left-0 bg-slate-900 text-slate-100 text-xs rounded-lg border border-slate-700 shadow-xl p-3 w-72">
-                    Lista delle parole sbagliate o segnate. Puoi scaricarle e, con il CSV completo, ricaricare la sessione successiva mantenendo gli errori segnati. Quando le impari, rimuovile dalla lista.
-                  </div>
-                )}
-              </div>
+                i
+              </button>
             </div>
             <p className="text-slate-400 text-sm">{wordsToReview.length} parole</p>
             <button
@@ -1188,7 +1294,7 @@ export default function LessicoGame() {
                     {copyFeedback}
                   </div>
                 )}
-                
+
                 <div className="flex items-center gap-3 flex-wrap">
                   <label className="text-slate-400 text-sm flex-shrink-0">Scarica:</label>
                   <select
@@ -1197,7 +1303,7 @@ export default function LessicoGame() {
                     className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
                   >
                     <option value="text">TXT (parole da rivedere/errori)</option>
-                    <option value="csv">CSV errori/da rivedere</option>
+                    <option value="csv">CSV completo con errori/da rivedere</option>
                   </select>
                   <button
                     onClick={() => downloadFile(exportFormat)}
@@ -1332,7 +1438,6 @@ export default function LessicoGame() {
               <Check className="w-5 h-5" /> La so!
             </button>
           </div>
-          <FoxInline />
         </div>
       </div>
     );
@@ -1405,7 +1510,6 @@ export default function LessicoGame() {
           {waitingForContinue && showCorrectAnswer && (
             <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
           )}
-          <FoxInline />
         </div>
       </div>
     );
@@ -1566,7 +1670,7 @@ export default function LessicoGame() {
                 key={card.id}
                 onClick={() => handleCardClick(card)}
                 disabled={isMatched}
-                className={`p-4 rounded-xl min-h-[140px] max-h-[200px] overflow-y-auto transition-all transform flex items-center justify-center ${
+                className={`p-4 rounded-xl min-h-[140px] max-h-[220px] overflow-hidden transition-all transform flex items-center justify-center ${
                   isMatched
                     ? 'bg-cyan-900/30 text-cyan-300 scale-95 border border-cyan-800/50'
                     : isSelected
@@ -1574,7 +1678,12 @@ export default function LessicoGame() {
                       : 'bg-slate-700/30 text-slate-200 hover:bg-slate-700/50 border border-slate-600/50'
                 } ${card.type === 'term' ? 'font-bold text-base' : 'text-sm leading-relaxed'}`}
               >
-                <span className="text-center">{card.content}</span>
+                <span
+                  className="text-center break-words"
+                  style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                >
+                  {card.content}
+                </span>
               </button>
             );
           })}
@@ -1753,10 +1862,10 @@ export default function LessicoGame() {
       </div>
     );
 
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
-        <div className="max-w-5xl mx-auto pt-6">
-          <div className="flex flex-col gap-4 mb-6">
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
+          <div className="max-w-5xl mx-auto pt-6">
+            <div className="flex flex-col gap-4 mb-6">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setGameMode(null)}
@@ -2013,6 +2122,7 @@ export default function LessicoGame() {
               ))}
             </div>
           )}
+          <FoxInline />
         </div>
       </div>
     );
@@ -2023,6 +2133,8 @@ export default function LessicoGame() {
     <>
       {showReviewPanel && <ReviewPanel />}
       {showInstructions && <InstructionsModal />}
+      {showReviewHelp && <ReviewInfoModal />}
+      {showSelectionInfo && <SelectionInfoModal />}
       {addedFeedback && (
         <div className={`fixed top-4 right-4 px-4 py-2 rounded-xl shadow-lg border z-50 animate-bounce ${addedFeedback === 'duplicate' ? 'bg-amber-500 text-slate-900 border-amber-600' : 'bg-emerald-500 text-slate-900 border-emerald-600'}`}>
           {addedFeedback === 'duplicate' ? 'Già inserita' : 'Aggiunta ai da rivedere ✓'}
