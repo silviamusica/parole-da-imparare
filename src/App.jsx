@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle } from 'lucide-react';
 import LogoYP from '../Logo YP.png';
 import LogoFoxHappy from '../Logo occhi aperti Yasmina.png';
+import demoCSV from '../lessico completo.csv?raw';
 
 // Parser CSV semplice - STRUTTURA: parola, accento, definizione, etimologia, esempio, data_inserimento, errori (SI/NO)
 const parseCSV = (text) => {
@@ -185,13 +186,10 @@ export default function LessicoGame() {
     }
   };
 
-  // Demo mode: carica 20 parole dal CSV incluso
-  const loadDemoWords = async () => {
+  // Demo mode: carica 20 parole dal CSV incluso (bundled)
+  const loadDemoWords = () => {
     try {
-      const res = await fetch('/lessico%20completo.csv');
-      if (!res.ok) throw new Error('Fetch failed');
-      const text = await res.text();
-      const parsed = parseCSV(text);
+      const parsed = parseCSV(demoCSV);
 
       const buildBalancedDemo = (list, target = 20) => {
         const grouped = {};
