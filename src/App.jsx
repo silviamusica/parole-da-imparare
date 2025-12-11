@@ -157,7 +157,7 @@ export default function LessicoGame() {
   const [chunkIndex, setChunkIndex] = useState(0);
   const [onlyWrongSubset, setOnlyWrongSubset] = useState(false);
   const [activePool, setActivePool] = useState([]);
-  const [onlyErrorFlag, setOnlyErrorFlag] = useState(false);
+  const [learnedFilter, setLearnedFilter] = useState('all'); // all | yes | no
   const [menuTab, setMenuTab] = useState('consultation'); // consultation (Studio) | games
   const [consultOrder, setConsultOrder] = useState('alpha'); // random | alpha
   const [consultLetter, setConsultLetter] = useState('all');
@@ -465,8 +465,10 @@ export default function LessicoGame() {
   const getFilteredWords = useCallback(() => {
     const reviewTerms = new Set(wordsToReview.map(w => w.term));
     let base = onlyWrongSubset ? words.filter(w => reviewTerms.has(w.term)) : words;
-    if (onlyErrorFlag) {
-      base = base.filter(w => (w.errorFlag || '').toUpperCase() === 'SI');
+    if (learnedFilter === 'yes') {
+      base = base.filter(w => w.learned);
+    } else if (learnedFilter === 'no') {
+      base = base.filter(w => !w.learned);
     }
 
     if (subsetMode === 'chunk') {
@@ -521,7 +523,7 @@ export default function LessicoGame() {
     }
 
     return finalSet;
-  }, [words, wordsToReview, subsetMode, chunkPercent, chunkIndex, onlyWrongSubset, onlyErrorFlag, useRecent, recentLimit, recentMode, recentSince]);
+  }, [words, wordsToReview, subsetMode, chunkPercent, chunkIndex, onlyWrongSubset, learnedFilter, useRecent, recentLimit, recentMode, recentSince]);
 
   const getWordPool = useCallback(() => shuffleArray(getFilteredWords()), [getFilteredWords]);
 
@@ -550,7 +552,7 @@ export default function LessicoGame() {
             <p>• <strong>Vista Schede</strong>: elenco delle parole con definizione, etimologia ed esempi. Da qui puoi aggiungere parole alla sezione “Parole da rivedere”.</p>
             <p>• <strong>Vista Flashcard</strong>: vedi solo la parola; clicca per girare e leggere i dettagli, poi decidi se aggiungerla alla sezione “Parole da rivedere”.</p>
           </div>
-          <p><strong>Parole da rivedere</strong>: raccoglie gli errori commessi durante il gioco o le parole selezionate durante lo studio. Puoi scaricarle (CSV/testo) per salvarle, e con il CSV completo puoi ricaricare la sessione seguente mantenendo gli errori segnati e filtrare su “Solo sbagliate”/“Solo errori CSV” per ripassare in modo mirato. Quando le impari, puoi rimuoverle dalla sezione “Parole da rivedere”.</p>
+          <p><strong>Parole da rivedere</strong>: raccoglie gli errori commessi durante il gioco o le parole selezionate durante lo studio. Puoi scaricarle (CSV/testo) per salvarle, e con il CSV completo puoi ricaricare la sessione seguente mantenendo gli errori segnati e filtrare su “Solo sbagliate” o “Appreso” (SI/NO) per ripassare in modo mirato. Quando le impari, puoi rimuoverle dalla sezione “Parole da rivedere”.</p>
           <p><strong>Tab Giochi</strong>: Quiz, Speed, Completa, Memory usano lo stesso set filtrato: perfetti per ripassare dopo lo studio.</p>
         </div>
       </div>
@@ -1066,11 +1068,11 @@ export default function LessicoGame() {
           </button>
         </div>
         <div className="space-y-3 text-sm leading-relaxed text-slate-200">
-          <p><strong>Tranche</strong>: scegli una fetta del database per lettera (10/20/33/50%). Es: 10% prende il primo 10% di ogni lettera; puoi selezionare 1ª, 2ª, ecc. fetta per studiare a blocchi.</p>
-          <p><strong>Solo sbagliate</strong>: usa solo le parole che hai aggiunto a “Da rivedere”. Perfetto per ripassare gli errori segnalati in gioco o studio.</p>
-          <p><strong>Solo errori CSV</strong>: usa solo le parole marcate “SI” nel CSV. Scarica il CSV degli errori, ricaricalo e spunta qui per ripassare solo quelle, mantenendo lo storico.</p>
-          <p><strong>Ultime inserite</strong>: puoi limitarti alle parole più recenti scegliendo quante prenderne, oppure l’intervallo temporale (ultime 24h, 7 giorni, ultimo mese o da una data specifica).</p>
-          <p><strong>Combinazioni</strong>: prima si applica la tranche (blocchi per lettera), poi le spunte restringono ulteriormente il set selezionato.</p>
+          <p>📊 <strong>Tranche</strong>: scegli una fetta del database per lettera (10/20/33/50%). Es: 10% = primo 10% di ogni lettera; puoi scegliere 1ª, 2ª… fetta per studiare a blocchi.</p>
+          <p>🎯 <strong>Solo sbagliate</strong>: usa solo le parole che hai aggiunto a “Da rivedere” (errori in gioco/studio).</p>
+          <p>📗 <strong>Appreso</strong>: scegli se vedere solo le parole già apprese (APPRESO=SI) o solo quelle da imparare (APPRESO=NO) in base al CSV.</p>
+          <p>⏱️ <strong>Ultime inserite</strong>: limita alle parole più recenti (per numero) oppure per tempo: ultime 24h, 7 giorni, ultimo mese o da una data.</p>
+          <p>➕ <strong>Combinazioni</strong>: prima si applica la tranche, poi le spunte restringono ulteriormente il set.</p>
         </div>
       </div>
     </div>
@@ -1566,7 +1568,7 @@ export default function LessicoGame() {
           </div>
 
           <div className="space-y-3">
-            <p className="text-slate-400 text-sm">Configura tranche, errori e parole più recenti da studiare.</p>
+            <p className="text-slate-400 text-sm">Configura tranche, parole da rivedere/apprese e parole più recenti da studiare.</p>
             <div className="grid gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <select
@@ -1619,17 +1621,20 @@ export default function LessicoGame() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner">
+              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
-                  <span>Solo errori CSV</span>
+                  <span>Appreso</span>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={onlyErrorFlag}
-                  onChange={(e) => setOnlyErrorFlag(e.target.checked)}
-                  className="accent-cyan-500 h-4 w-4"
-                />
-              </label>
+                <select
+                  value={learnedFilter}
+                  onChange={(e) => setLearnedFilter(e.target.value)}
+                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="all">Tutti</option>
+                  <option value="yes">Solo appresi (SI)</option>
+                  <option value="no">Solo non appresi (NO)</option>
+                </select>
+              </div>
 
               <div className="flex flex-col gap-2 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center justify-between">
