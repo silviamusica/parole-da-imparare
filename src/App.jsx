@@ -6,7 +6,7 @@ import LogoYasminaOcchi from '../Logo Yasmina occhi.png';
 import demoCSV from '../lessico completo.csv?raw';
 
 // Parser CSV flessibile: supporta vecchio schema (parola, accento, definizione, etimologia, esempio, data, errori)
-// e nuovo schema: Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, Data di inserimento
+// e nuovo schema: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO
 const parseCSV = (text) => {
   const lines = text.split('\n').filter(line => line.trim());
   if (lines.length < 2) return [];
@@ -51,18 +51,21 @@ const parseCSV = (text) => {
 
   for (let i = 1; i < lines.length; i++) {
     const row = parseRow(lines[i]);
-    const term = getField(row, 0, 'termine', 'parola', 'term');
-    const accent = getField(row, 1, 'accento', 'accent');
-    const definition = getField(row, 2, 'definizione', 'definition');
-    const etymology = getField(row, 3, 'etimologia', 'etimo');
-    const ex1 = getField(row, 4, 'esempio 1', 'esempio', 'example');
-    const ex2 = getField(row, -1, 'esempio 2');
-    const ex3 = getField(row, -1, 'esempio 3');
-    const frequencyUsage = getField(row, -1, "frequenza d'uso", 'frequenza uso');
-    const technical = getField(row, -1, 'linguaggio tecnico');
-    const insertedAt = getField(row, 5, 'data di inserimento', 'data_inserimento', 'data');
-    const errorFlagRaw = getField(row, 6, 'errori', 'errorflag', 'error');
-    const errorFlag = (errorFlagRaw || '').trim().toUpperCase() === 'SI' ? 'SI' : 'NO';
+    const term = getField(row, 1, 'termine', 'parola', 'term');
+    const accent = getField(row, 2, 'accento', 'accent');
+    const definition = getField(row, 3, 'definizione', 'definition');
+    const etymology = getField(row, 4, 'etimologia', 'etimo');
+    const ex1 = getField(row, 5, 'esempio 1', 'esempio', 'example');
+    const ex2 = getField(row, 6, 'esempio 2');
+    const ex3 = getField(row, 7, 'esempio 3');
+    const frequencyUsage = getField(row, 8, "frequenza d'uso", 'frequenza uso');
+    const technical = getField(row, 9, 'linguaggio tecnico');
+    const insertedAt = getField(row, 0, 'data di inserimento', 'data_inserimento', 'data');
+    const errorRaw = getField(row, 10, 'errori', 'errorflag', 'error');
+    const upperErr = (errorRaw || '').trim().toUpperCase();
+    const errorFlag = upperErr === 'SI' ? 'SI' : 'NO';
+    const commonErrors = upperErr === 'SI' || upperErr === 'NO' ? '' : (errorRaw || '');
+    const learned = (getField(row, 11, 'appreso') || '').trim().toUpperCase() === 'SI';
 
     if (term && definition) {
       const examples = [ex1, ex2, ex3].filter(Boolean).join(' • ');
@@ -72,10 +75,13 @@ const parseCSV = (text) => {
         definition,
         etymology,
         example: examples,
+        example1: ex1 || '',
         example2: ex2 || '',
         example3: ex3 || '',
         frequencyUsage: frequencyUsage || '',
         technical: technical || '',
+        commonErrors,
+        learned,
         insertedAt,
         errorFlag,
         mastery: 0,
@@ -851,15 +857,15 @@ export default function LessicoGame() {
       ).join('\n---\n\n');
     } else if (format === 'csv') {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere (nuovo schema)
-      const header = 'Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d\'uso,Linguaggio tecnico,Errori,Data di inserimento\n';
+      const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
       const rows = words.map(w => 
-        `"${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${reviewTerms.has(w.term) ? 'SI' : (w.errorFlag || 'NO')}","${w.insertedAt || ''}"`
+        `"${w.insertedAt || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${reviewTerms.has(w.term) ? 'SI' : (w.errorFlag || 'NO')}","${w.learned ? 'SI' : 'NO'}"`
       ).join('\n');
       return header + rows;
     } else if (format === 'csv_empty') {
       // CSV vuoto con intestazioni (nuovo schema)
-      return 'Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d\'uso,Linguaggio tecnico,Errori,Data di inserimento\n';
+      return "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
     } else if (format === 'list') {
       return wordsToReview.map(w => `• ${w.term}${w.accent ? ` (${w.accent})` : ''}: ${w.definition}`).join('\n');
     }
@@ -901,35 +907,73 @@ export default function LessicoGame() {
     setTimeout(() => setCopyFeedback(''), 2000);
   };
 
-  // Componente per mostrare risposta corretta e pulsante continua
-  const CorrectAnswerDisplay = ({ correctWord }) => (
-    <div className="mt-6 space-y-4">
-      <div className="p-4 bg-cyan-950/30 border border-cyan-900/50 rounded-xl">
-        <p className="text-cyan-400 font-bold text-lg mb-2">
-          ✅ La risposta corretta era: {correctWord.term}
-        </p>
-        {correctWord.accent && (
-          <p className="text-slate-400 text-sm mb-2">Accento: {correctWord.accent}</p>
-        )}
-        <p className="text-slate-100 mb-2">{correctWord.definition}</p>
-        {correctWord.etymology && (
-          <p className="text-slate-400 text-sm italic mb-2">{correctWord.etymology}</p>
-        )}
-        {correctWord.example && (
-          <p className="text-slate-300 text-sm mt-2 p-2 bg-slate-800/30 rounded-lg">
-            "{correctWord.example}"
-          </p>
-        )}
+  const getExamples = (word) => [word?.example1, word?.example2, word?.example3].filter(Boolean);
+
+  // Seleziona un esempio in modo deterministico per evitare cambiamenti tra un render e l'altro
+  const pickStableExample = (word) => {
+    const examples = getExamples(word);
+    if (!examples.length) return null;
+    const key = word?.term || '';
+    let seed = 0;
+    for (let i = 0; i < key.length; i++) {
+      seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+    }
+    const idx = seed % examples.length;
+    return examples[idx];
+  };
+
+  const ExamplesBlock = ({ word, className = '' }) => {
+    const examples = getExamples(word);
+    if (!examples.length) return null;
+    return (
+      <div className={`mt-3 bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2 ${className}`}>
+        <p className="text-slate-400 text-sm">Esempi d'uso:</p>
+        <ul className="text-slate-200 text-sm space-y-1">
+          {examples.map((ex, idx) => (
+            <li key={idx} className="flex gap-2">
+              <span className="text-slate-500">-</span>
+              <span>{ex}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      
-      <button
-        onClick={nextWord}
-        className="w-full bg-gradient-to-r from-cyan-900 to-sky-900 hover:from-cyan-800 hover:to-sky-800 text-slate-100 font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 border border-cyan-800/50"
-      >
-        Continua <ArrowRight className="w-5 h-5" />
-      </button>
-    </div>
-  );
+    );
+  };
+
+  // Componente per mostrare risposta corretta e pulsante continua
+  const CorrectAnswerDisplay = ({ correctWord }) => {
+    return (
+      <div className="mt-6 space-y-4">
+        <div className="p-4 bg-cyan-950/30 border border-cyan-900/50 rounded-xl space-y-2">
+          <p className="text-cyan-400 font-bold text-lg">
+            ✅ La risposta corretta era: {correctWord.term}
+          </p>
+          {correctWord.accent && (
+            <p className="text-slate-400 text-sm">Accento: {correctWord.accent}</p>
+          )}
+          <p className="text-slate-100">{correctWord.definition}</p>
+          {correctWord.etymology && (
+            <p className="text-slate-400 text-sm italic">{correctWord.etymology}</p>
+          )}
+          {(correctWord.frequencyUsage || (correctWord.technical && correctWord.technical.toLowerCase() !== 'comune') || (correctWord.commonErrors && correctWord.commonErrors.toLowerCase() !== 'nessuno')) && (
+            <div className="text-slate-300 text-xs space-y-1">
+              {correctWord.frequencyUsage && <p>Frequenza d'uso: {correctWord.frequencyUsage}</p>}
+              {correctWord.technical && correctWord.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {correctWord.technical}</p>}
+              {correctWord.commonErrors && correctWord.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {correctWord.commonErrors}</p>}
+            </div>
+          )}
+          <ExamplesBlock word={correctWord} className="mt-2" />
+        </div>
+        
+        <button
+          onClick={nextWord}
+          className="w-full bg-gradient-to-r from-cyan-900 to-sky-900 hover:from-cyan-800 hover:to-sky-800 text-slate-100 font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 border border-cyan-800/50"
+        >
+          Continua <ArrowRight className="w-5 h-5" />
+        </button>
+      </div>
+    );
+  };
 
   const InfoTooltip = ({ text }) => (
     <span className="relative group inline-flex items-center">
@@ -1392,9 +1436,7 @@ export default function LessicoGame() {
                     {word.etymology && (
                       <p className="text-slate-400 text-sm italic mt-2">{word.etymology}</p>
                     )}
-                    {word.example && (
-                      <p className="text-slate-300 text-sm mt-2 p-2 bg-slate-800/50 rounded">"{word.example}"</p>
-                    )}
+                    <ExamplesBlock word={word} />
                   </div>
                 ))}
               </div>
@@ -1684,14 +1726,16 @@ export default function LessicoGame() {
                   <p className="text-slate-400 text-sm mb-3">Accento: {word.accent}</p>
                 )}
                 <p className="text-slate-300 text-lg mb-4">{word.definition}</p>
+                {(word.frequencyUsage || (word.technical && word.technical.toLowerCase() !== 'comune')) && (
+                  <div className="text-slate-400 text-sm space-y-1 mb-3">
+                    {word.frequencyUsage && <p>Frequenza d'uso: {word.frequencyUsage}</p>}
+                    {word.technical && word.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {word.technical}</p>}
+                  </div>
+                )}
                 {word.etymology && (
                   <p className="text-slate-400 text-sm italic mb-2">{word.etymology}</p>
                 )}
-                {word.example && (
-                  <p className="text-slate-300 text-sm mt-4 p-3 bg-slate-800/30 rounded-lg">
-                    "{word.example}"
-                  </p>
-                )}
+                <ExamplesBlock word={word} className="mt-4" />
               </>
             )}
           </div>
@@ -1814,6 +1858,13 @@ export default function LessicoGame() {
       const middle = '_'.repeat(Math.max(term.length - 2, 0));
       return `${first}${middle}${last}`;
     }, [word.term]);
+
+    // Testo del prompt: sempre definizione se presente, altrimenti un esempio casuale (stabile per parola)
+    const promptText = useMemo(() => {
+      if (word.definition) return word.definition;
+      const stableExample = pickStableExample(word);
+      return stableExample || 'Inserisci la parola mancante.';
+    }, [word, currentIndex]);
     
     // Se l'aiuto supera l'80%, segna come sbagliato automaticamente
     if (hintData && hintData.lost && isCorrect === null) {
@@ -1840,7 +1891,7 @@ export default function LessicoGame() {
 
           <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-6 mb-6 border border-slate-700/50">
             <p className="text-slate-500 text-sm mb-2">Scrivi la parola:</p>
-            <p className="text-xl text-slate-100 mb-4">{word.definition}</p>
+            <p className="text-xl text-slate-100 mb-4">{promptText}</p>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-cyan-300 font-mono text-lg">Schema:</p>
               <p className="text-cyan-100 font-mono text-xl tracking-wide">{masked}</p>
@@ -1869,8 +1920,17 @@ export default function LessicoGame() {
               <div className={`text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
                 {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || word).term}
               </div>
-              <div className="text-sm font-normal text-slate-200">
-                Definizione: {(showCorrectAnswer || word).definition}
+              <div className="text-sm font-normal text-slate-200 space-y-1">
+                <div>Definizione: {(showCorrectAnswer || word).definition}</div>
+                {(showCorrectAnswer || word).commonErrors && (
+                  <div>Errori frequenti: {(showCorrectAnswer || word).commonErrors}</div>
+                )}
+                {(showCorrectAnswer || word).frequencyUsage && (
+                  <div>Frequenza: {(showCorrectAnswer || word).frequencyUsage}</div>
+                )}
+                {(showCorrectAnswer || word).technical && (
+                  <div>Linguaggio tecnico: {(showCorrectAnswer || word).technical}</div>
+                )}
               </div>
               {waitingForContinue && (
                 <button
@@ -1946,7 +2006,13 @@ export default function LessicoGame() {
       );
     }
 
-    const baseText = word.example || word.definition || '';
+    const phraseExample = useMemo(() => {
+      const example = pickStableExample(word);
+      if (example) return example;
+      return word.definition || '';
+    }, [word, currentIndex]);
+
+    const baseText = phraseExample;
     const { maskedText, targetWord } = useMemo(
       () => maskTargetInText(word.term, baseText),
       [word.term, baseText]
@@ -1985,7 +2051,7 @@ export default function LessicoGame() {
 
           <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-6 mb-6 border border-slate-700/50">
             <p className="text-slate-500 text-sm mb-2">Caso d'uso:</p>
-            <p className="text-lg text-slate-100 mb-4">“{maskedText}”</p>
+            <p className="text-lg text-slate-100 mb-4">{maskedText}</p>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-cyan-300 font-mono text-lg">Parola:</p>
               <p className="text-cyan-100 font-mono text-xl tracking-wide">{hintData ? hintData.hint : masked}</p>
@@ -2012,8 +2078,17 @@ export default function LessicoGame() {
               <div className={`text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
                 {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || { term: targetWord || word.term }).term}
               </div>
-              <div className="text-sm font-normal text-slate-200">
-                Definizione: {(showCorrectAnswer || word).definition}
+              <div className="text-sm font-normal text-slate-200 space-y-1">
+                <div>Definizione: {(showCorrectAnswer || word).definition}</div>
+                {(showCorrectAnswer || word).commonErrors && (
+                  <div>Errori frequenti: {(showCorrectAnswer || word).commonErrors}</div>
+                )}
+                {(showCorrectAnswer || word).frequencyUsage && (
+                  <div>Frequenza: {(showCorrectAnswer || word).frequencyUsage}</div>
+                )}
+                {(showCorrectAnswer || word).technical && (
+                  <div>Linguaggio tecnico: {(showCorrectAnswer || word).technical}</div>
+                )}
               </div>
               {waitingForContinue && (
                 <button
@@ -2298,11 +2373,14 @@ export default function LessicoGame() {
         {word.etymology && (
           <p className="text-slate-400 text-sm italic mb-2">{word.etymology}</p>
         )}
-        {word.example && (
-          <p className="text-slate-300 text-sm mt-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            “{word.example}”
-          </p>
+        {(word.frequencyUsage || (word.technical && word.technical.toLowerCase() !== 'comune') || (word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno')) && (
+          <div className="text-slate-400 text-xs space-y-1 mb-2">
+            {word.frequencyUsage && <p>Frequenza d'uso: {word.frequencyUsage}</p>}
+            {word.technical && word.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {word.technical}</p>}
+            {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {word.commonErrors}</p>}
+          </div>
         )}
+        <ExamplesBlock word={word} />
       </div>
     );
 
@@ -2548,15 +2626,18 @@ export default function LessicoGame() {
                                     + Da rivedere
                                   </button>
                                 </div>
-                                <p className="text-slate-200 leading-relaxed">{word.definition}</p>
-                                {word.etymology && (
-                                  <p className="text-slate-400 text-sm italic">{word.etymology}</p>
-                                )}
-                                {word.example && (
-                                  <p className="text-slate-300 text-sm mt-2 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                                    “{word.example}”
-                                  </p>
-                                )}
+                            <p className="text-slate-200 leading-relaxed">{word.definition}</p>
+                            {word.etymology && (
+                              <p className="text-slate-400 text-sm italic">{word.etymology}</p>
+                            )}
+                            {(word.frequencyUsage || (word.technical && word.technical.toLowerCase() !== 'comune') || (word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno')) && (
+                              <div className="text-slate-400 text-xs space-y-1 mt-2">
+                                {word.frequencyUsage && <p>Frequenza d'uso: {word.frequencyUsage}</p>}
+                                {word.technical && word.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {word.technical}</p>}
+                                {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {word.commonErrors}</p>}
+                              </div>
+                            )}
+                            <ExamplesBlock word={word} />
                                 <p className="text-slate-500 text-xs">Clicca per richiudere</p>
                               </div>
                             )}
