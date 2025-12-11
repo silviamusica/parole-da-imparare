@@ -735,7 +735,10 @@ export default function LessicoGame() {
   const downloadFile = (format) => {
     const text = formatWordsForExport(format);
     const extension = format.includes('csv') ? 'csv' : 'txt';
-    const filename = format === 'csv_full' ? 'lessico-completo-con-errori.csv' : 'parole-da-rivedere.' + extension;
+    const filename =
+      format === 'csv_empty' ? 'parole-da-imparare.csv' :
+      format === 'csv_full' ? 'lessico-completo-con-errori.csv' :
+      'parole-da-rivedere.' + extension;
     const mimeType = format.includes('csv') ? 'text/csv;charset=utf-8' : 'text/plain;charset=utf-8';
     const blob = new Blob([text], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -1134,18 +1137,13 @@ export default function LessicoGame() {
 
         <button
           onClick={() => setWords([])}
-          className="mt-8 mx-auto block hover:scale-105 transition-transform"
-        aria-label="Carica un altro file"
-        type="button"
-        onMouseDown={(e) => e.preventDefault()}
-        onClickCapture={handleFoxClick}
-      >
-        <img
-          src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
-          alt="Logo"
-          className={`h-[84px] w-auto drop-shadow-lg transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
-        />
-      </button>
+          className="mt-8 mx-auto block text-slate-200 hover:text-cyan-300 transition-colors text-sm"
+          aria-label="Carica un altro file"
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          Carica un altro file
+        </button>
       </div>
     </div>
   );
@@ -1934,6 +1932,9 @@ export default function LessicoGame() {
               ))}
             </div>
           )}
+          <div className="mt-6">
+            <FoxInline />
+          </div>
         </div>
       </div>
     );
@@ -2134,7 +2135,7 @@ export default function LessicoGame() {
       {showReviewHelp && <ReviewInfoModal />}
       {showSelectionInfo && <SelectionInfoModal />}
       {addedFeedback && (
-        <div className={`fixed top-4 right-4 px-4 py-2 rounded-xl shadow-lg border z-50 animate-bounce ${addedFeedback === 'duplicate' ? 'bg-amber-500 text-slate-900 border-amber-600' : 'bg-emerald-500 text-slate-900 border-emerald-600'}`}>
+        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl shadow-lg border z-50 animate-bounce ${addedFeedback === 'duplicate' ? 'bg-amber-500 text-slate-900 border-amber-600' : 'bg-emerald-500 text-slate-900 border-emerald-600'}`}>
           {addedFeedback === 'duplicate' ? 'Già inserita' : 'Aggiunta ai da rivedere ✓'}
         </div>
       )}
