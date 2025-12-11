@@ -47,6 +47,30 @@ const parseCSV = (text) => {
     return '';
   };
 
+  const normalizeDate = (value) => {
+    if (!value) return '';
+    const val = `${value}`.trim();
+    // Formato dd-mm-yy o dd/mm/yy o dd.mm.yy
+    const ddmmyy = val.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+    if (ddmmyy) {
+      const [_, d, m, y] = ddmmyy;
+      const dd = d.padStart(2, '0');
+      const mm = m.padStart(2, '0');
+      const yy = y.padStart(2, '0');
+      return `${dd}-${mm}-${yy}`;
+    }
+    // Formato yyyy-mm-dd
+    const ymd = val.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+    if (ymd) {
+      const [_, y, m, d] = ymd;
+      const dd = d.padStart(2, '0');
+      const mm = m.padStart(2, '0');
+      const yy = y.slice(-2);
+      return `${dd}-${mm}-${yy}`;
+    }
+    return val; // lascia com'è se non riconosciuto
+  };
+
   const words = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -60,7 +84,8 @@ const parseCSV = (text) => {
     const ex3 = getField(row, 7, 'esempio 3');
     const frequencyUsage = getField(row, 8, "frequenza d'uso", 'frequenza uso');
     const technical = getField(row, 9, 'linguaggio tecnico');
-    const insertedAt = getField(row, 0, 'data di inserimento', 'data_inserimento', 'data');
+    const insertedAtRaw = getField(row, 0, 'data di inserimento', 'data_inserimento', 'data');
+    const insertedAt = normalizeDate(insertedAtRaw);
     const errorRaw = getField(row, 10, 'errori', 'errorflag', 'error');
     const upperErr = (errorRaw || '').trim().toUpperCase();
     const errorFlag = upperErr === 'SI' ? 'SI' : 'NO';
@@ -856,13 +881,49 @@ export default function LessicoGame() {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere (nuovo schema)
       const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
-      const rows = words.map(w => 
-        `"${w.insertedAt || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${reviewTerms.has(w.term) ? 'SI' : (w.errorFlag || 'NO')}","${w.learned ? 'SI' : 'NO'}"`
-      ).join('\n');
+      const rows = words.map(w => {
+        const errorValue = (() => {
+          if (w.commonErrors) return w.commonErrors;
+          if (reviewTerms.has(w.term)) return 'Da rivedere';
+          return 'NO';
+        })();
+        return `"${normalizeDate(w.insertedAt) || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${errorValue}","${w.learned ? 'SI' : 'NO'}"`;
+      }).join('\n');
       return header + rows;
     } else if (format === 'csv_empty') {
-      // CSV vuoto con intestazioni (nuovo schema)
-      return "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
+      // CSV vuoto con intestazioni + riga istruzioni + riga esempio
+      const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO";
+      const instructions = [
+        'GG-MM-AA (es. 14-10-25)',
+        'Termine (obbligatorio)',
+        "Accento (es. caffè → caff\u00e8)",
+        'Definizione chiara e breve (obbligatoria)',
+        'Etimologia (facoltativo)',
+        'Caso d\'uso 1 (obbligatorio)',
+        'Caso d\'uso 2 (facoltativo)',
+        'Caso d\'uso 3 (facoltativo)',
+        "Frequenza d'uso (Bassa/Media/Alta)",
+        "Linguaggio tecnico (Comune/Medico/Legale...)", 
+        "Errori: descrizione (es. 'spesso confuso con...') oppure NO",
+        'APPRESO: SI/NO'
+      ].map(v => `"${v.replace(/"/g, '""')}"`).join(',');
+
+      const sample = [
+        '14-10-25',
+        'Abbacinato',
+        'abbacin\u00e0to',
+        'Accecato o confuso da una luce troppo intensa.',
+        'Deriva dal latino "abbacinare", accecare.',
+        'Fu abbacinato dal riflesso del sole sul mare.',
+        'Rimase abbacinato dalla bellezza del paesaggio innevato.',
+        'Uscendo dal cinema, fu abbacinato dalla luce pomeridiana.',
+        'Bassa',
+        'Letterario',
+        'Spesso confuso con "abbagliato"; errori di calligrafia es. "accaponare" con una sola p.',
+        'NO'
+      ].map(v => `"${v.replace(/"/g, '""')}"`).join(',');
+
+      return `${header}\n${instructions}\n${sample}\n`;
     } else if (format === 'list') {
       return wordsToReview.map(w => `• ${w.term}${w.accent ? ` (${w.accent})` : ''}: ${w.definition}`).join('\n');
     }
