@@ -87,7 +87,6 @@ export default function LessicoGame() {
   const [chunkIndex, setChunkIndex] = useState(0);
   const [onlyWrongSubset, setOnlyWrongSubset] = useState(false);
   const [activePool, setActivePool] = useState([]);
-  const [soundOn, setSoundOn] = useState(true);
   const [onlyErrorFlag, setOnlyErrorFlag] = useState(false);
   const [menuTab, setMenuTab] = useState('consultation'); // consultation (Studio) | games
   const [consultOrder, setConsultOrder] = useState('alpha'); // random | alpha
@@ -107,6 +106,8 @@ export default function LessicoGame() {
   const [foxCycleStep, setFoxCycleStep] = useState(0); // 0 -> alt, 1 -> happy
   const [foxAnimSize, setFoxAnimSize] = useState('big'); // small | big
   const audioCtxRef = useRef(null);
+  const [lastGameMode, setLastGameMode] = useState(null);
+  const [quizTimed, setQuizTimed] = useState(false);
 
   const triggerAddedFeedback = (type = 'added') => {
     setAddedFeedback(type);
@@ -114,55 +115,8 @@ export default function LessicoGame() {
   };
 
   // Effetti sonori semplici
-  const playSound = (type) => {
-    if (!soundOn) return;
-    try {
-      const ctx = audioCtxRef.current || new (window.AudioContext || window.webkitAudioContext)();
-      audioCtxRef.current = ctx;
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = type === 'good' ? 880 : 220;
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.3);
-    } catch (e) {
-      // Ignora errori audio (es. autoplay block)
-    }
-  };
-
-  // Suono tenero per la volpe
-  const playCuteSound = () => {
-    if (!soundOn) return;
-    try {
-      const ctx = audioCtxRef.current || new (window.AudioContext || window.webkitAudioContext)();
-      audioCtxRef.current = ctx;
-      const now = ctx.currentTime;
-
-      // Pop piano e morbido
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(520, now);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.05, now + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now);
-      osc.stop(now + 0.2);
-    } catch (e) {
-      // Ignora errori audio
-    }
-  };
+  const playSound = () => {};
+  const playCuteSound = () => {};
 
   const handleFoxClick = () => {
     setFoxAnim(true);
@@ -308,6 +262,20 @@ export default function LessicoGame() {
     return common + categoryBonus + initialBonus + lengthBonus;
   };
 
+  const normalizeWord = (w) => (w || '').trim().toLowerCase();
+
+  const buildVariants = (word) => {
+    const base = normalizeWord(word);
+    if (!base) return [];
+    const variants = new Set([base]);
+    const last = base.slice(-1);
+    if (last === 'a') variants.add(base.slice(0, -1) + 'e');
+    if (last === 'o') variants.add(base.slice(0, -1) + 'i');
+    if (last === 'e') variants.add(base.slice(0, -1) + 'i');
+    if (last === 'i') variants.add(base.slice(0, -1) + 'e');
+    return Array.from(variants);
+  };
+
   // Genera hint tipo impiccato - PROGRESSIVO (deterministico, niente shuffle a ogni render)
   const generateHint = (word, level) => {
     const len = word.length;
@@ -349,6 +317,47 @@ export default function LessicoGame() {
       .join('');
 
     return { hint, lost: false, percent: percentRevealed };
+  };
+
+  // Oscura la parola da indovinare dentro un testo (frasi/casi d'uso) e restituisce anche la parola trovata
+  const maskTargetInText = (term, text) => {
+    if (!term || !text) return { maskedText: text || '', targetWord: term || '' };
+
+    const variants = [term];
+    const lower = term.toLowerCase();
+    const last = lower.slice(-1);
+    if (last === 'a') variants.push(lower.slice(0, -1) + 'e');
+    if (last === 'o') variants.push(lower.slice(0, -1) + 'i');
+    if (last === 'e') variants.push(lower.slice(0, -1) + 'i');
+    if (last === 'i') variants.push(lower.slice(0, -1) + 'e');
+    // Variante con radice (gestisce verbi con desinenze/accents)
+    const stem = lower.slice(0, Math.max(4, Math.floor(lower.length * 0.6)));
+
+    let target = term;
+    let masked = text;
+    let found = false;
+    for (const v of variants) {
+      const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      const match = text.match(regex);
+      if (match) {
+        target = match[0];
+        masked = text.replace(regex, '_'.repeat(match[0].length));
+        found = true;
+        break;
+      }
+    }
+
+    if (!found && stem.length >= 3) {
+      const regexStem = new RegExp(`\\b${stem}[\\wàèéìòù]*\\b`, 'i');
+      const match = text.match(regexStem);
+      if (match) {
+        target = match[0];
+        masked = text.replace(regexStem, '_'.repeat(match[0].length));
+      }
+    }
+
+    return { maskedText: masked, targetWord: target };
   };
 
   // Genera opzioni quiz con distrattori intelligenti
@@ -452,6 +461,9 @@ export default function LessicoGame() {
       startConsultation();
       return;
     }
+    if (mode === 'quiz') {
+      setQuizTimed(false);
+    }
     if (mode === 'match') {
       startGame(mode, null);
     } else {
@@ -515,16 +527,29 @@ export default function LessicoGame() {
       return;
     }
 
+    // Per Frasi, preferisci parole con esempio d'uso
+    let phrasePool = basePool.filter(w => w.example && w.example.trim().length > 0);
+    if (mode === 'phrase' && phrasePool.length < minNeeded) {
+      alert('Non ci sono abbastanza frasi/casi d’uso per questo filtro.');
+      setShowModeSelection(false);
+      setPendingMode(null);
+      return;
+    }
+    if (mode !== 'phrase') {
+      phrasePool = basePool;
+    }
+
     // Per il match, evita definizioni troppo lunghe; se non bastano, torna al pool completo
     let matchPool = basePool.filter(w => (w.definition || '').length <= 180);
     if (matchPool.length < 6) matchPool = basePool;
 
-    const shuffledPool = shuffleArray(basePool);
+    const shuffledPool = shuffleArray(mode === 'phrase' ? phrasePool : basePool);
     const limitApplied = Math.min(actualLimit, shuffledPool.length);
     const gameWords = mode === 'match'
       ? shuffleArray(matchPool).slice(0, Math.min(6, matchPool.length))
       : shuffledPool.slice(0, limitApplied);
 
+    setLastGameMode(mode);
     setGameMode(mode);
     setQuestionLimit(actualLimit);
     setShowModeSelection(false);
@@ -551,6 +576,8 @@ export default function LessicoGame() {
       }
     } else if (mode === 'match') {
       initMatchGame(gameWords);
+    } else if (mode === 'phrase') {
+      // nulla di speciale qui, già impostato gameWords
     }
   };
 
@@ -633,18 +660,15 @@ export default function LessicoGame() {
     setMaxStreak(Math.max(maxStreak, streak + 1));
     setGameStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
     setIsTimerRunning(false);
-    playSound('good');
-    setFoxVariant('happy');
-    setFoxAnimSize('big');
-    setFoxAnim(true);
-    if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
-    foxAnimTimeout.current = setTimeout(() => {
-      setFoxAnim(false);
-      setFoxVariant('default');
-    }, 2000);
-    
-    // Per le risposte corrette, passa subito alla prossima (veloce)
-    setTimeout(nextWord, 800);
+    // Non animare la volpe sulle risposte, solo al click esplicito
+    // Per i giochi a domanda (quiz/speed/compelta/frasi) mostra feedback e attendi conferma
+    if (['quiz', 'speedQuiz', 'fillBlank', 'phrase'].includes(gameMode)) {
+      setShowCorrectAnswer(shuffledWords[currentIndex]);
+      setWaitingForContinue(true);
+    } else {
+      // Per le altre modalità, passa subito alla prossima (veloce)
+      setTimeout(nextWord, 800);
+    }
   };
 
   // Gestione risposta sbagliata
@@ -717,10 +741,27 @@ export default function LessicoGame() {
 
   // Verifica fill blank
   const checkFillBlank = () => {
-    const correct = shuffledWords[currentIndex].term.toLowerCase();
-    const answer = fillBlankInput.toLowerCase().trim();
-    
-    if (answer === correct || correct.includes(answer) && answer.length > 3) {
+    const correctTerm = shuffledWords[currentIndex].term;
+    const variants = buildVariants(correctTerm);
+    const answer = normalizeWord(fillBlankInput);
+
+    if (variants.includes(answer)) {
+      setShowCorrectAnswer(shuffledWords[currentIndex]);
+      setWaitingForContinue(true);
+      handleCorrectAnswer();
+    } else {
+      handleWrongAnswer();
+    }
+  };
+
+  // Verifica per la modalità Frasi (usa la parola effettivamente rimossa dal testo)
+  const checkPhraseAnswer = (target, baseTerm) => {
+    const candidates = [...buildVariants(target), ...buildVariants(baseTerm)];
+    const answer = normalizeWord(fillBlankInput);
+
+    if (candidates.includes(answer)) {
+      setShowCorrectAnswer(shuffledWords[currentIndex]);
+      setWaitingForContinue(true);
       handleCorrectAnswer();
     } else {
       handleWrongAnswer();
@@ -1122,18 +1163,18 @@ export default function LessicoGame() {
               onClick={() => selectMode('quiz')}
             />
             <GameModeCard
-              icon={<Zap className="w-8 h-8" />}
-              title="Speed Quiz"
-              description="Rispondi prima che scada il tempo!"
-              color="from-sky-900 to-slate-900"
-              onClick={() => selectMode('speedQuiz')}
-            />
-            <GameModeCard
               icon={<Sparkles className="w-8 h-8" />}
               title="Completa"
               description="Scrivi la parola dalla definizione"
               color="from-blue-950 to-slate-950"
               onClick={() => selectMode('fillBlank')}
+            />
+            <GameModeCard
+              icon={<HelpCircle className="w-8 h-8" />}
+              title="Frasi"
+              description="Indovina la parola mancante dal caso d'uso"
+              color="from-indigo-950 to-slate-950"
+              onClick={() => selectMode('phrase')}
             />
             <GameModeCard
               icon={<Shuffle className="w-8 h-8" />}
@@ -1188,7 +1229,8 @@ export default function LessicoGame() {
       flashcard: 'Flashcard',
       quiz: 'Quiz',
       speedQuiz: 'Speed Quiz',
-      fillBlank: 'Completa'
+      fillBlank: 'Completa',
+      phrase: 'Frasi'
     };
     const totalAvailable = getFilteredWords().length || words.length;
     const noWords = totalAvailable === 0;
@@ -1197,7 +1239,7 @@ export default function LessicoGame() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 flex items-center justify-center p-4">
         <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-center border border-slate-700/50">
           <h2 className="text-2xl font-bold text-slate-100 mb-2">
-            {modeNames[pendingMode]}
+            {pendingMode === 'speedQuiz' ? modeNames['quiz'] : modeNames[pendingMode]}
           </h2>
           <p className="text-slate-400 mb-8">Quante domande vuoi?</p>
           
@@ -1207,10 +1249,21 @@ export default function LessicoGame() {
             </div>
           ) : (
             <div className="grid gap-4">
+              {pendingMode === 'quiz' && (
+                <label className="flex items-center justify-between bg-slate-800/40 border border-slate-700/60 rounded-xl px-4 py-3 text-slate-200">
+                  <span>Attiva timer (Speed)</span>
+                  <input
+                    type="checkbox"
+                    checked={quizTimed}
+                    onChange={(e) => setQuizTimed(e.target.checked)}
+                    className="accent-cyan-500 h-4 w-4"
+                  />
+                </label>
+              )}
               {limits.map(limit => (
                 <button
                   key={limit}
-                  onClick={() => startGame(pendingMode, limit)}
+                  onClick={() => startGame(pendingMode === 'quiz' && quizTimed ? 'speedQuiz' : pendingMode, limit)}
                   className="bg-slate-700/30 hover:bg-slate-700/50 border border-slate-600/50 p-4 rounded-xl transition-all flex items-center justify-center gap-3"
                   disabled={limit === 0}
                 >
@@ -1368,12 +1421,6 @@ export default function LessicoGame() {
             <span className="text-sky-400 font-bold">{streak}</span>
           </div>
         )}
-        <button
-          onClick={() => setSoundOn(!soundOn)}
-          className="bg-slate-800/40 px-3 py-1 rounded-full border border-slate-700/60 text-slate-200 hover:text-cyan-300 transition-colors"
-        >
-          {soundOn ? '🔊' : '🔇'}
-        </button>
       </div>
     </div>
   );
@@ -1516,9 +1563,12 @@ export default function LessicoGame() {
             </div>
           )}
 
-          {isCorrect !== null && !waitingForContinue && (
-            <div className={`text-center mt-6 text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
-              {isCorrect ? '✨ Corretto!' : `❌ Era: ${word.term}`}
+          {(isCorrect !== null || waitingForContinue) && (
+            <div className={`text-center mt-6 text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'} space-y-1`}>
+              <div>
+                {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || word).term}
+              </div>
+              <div className="text-sm font-normal text-slate-300">Definizione: {(showCorrectAnswer || word).definition}</div>
             </div>
           )}
           
@@ -1603,6 +1653,26 @@ export default function LessicoGame() {
             )}
           </div>
 
+          {(isCorrect !== null || waitingForContinue) && (
+            <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-center space-y-2">
+              <div className={`text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
+                {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || word).term}
+              </div>
+              <div className="text-sm font-normal text-slate-200">
+                Definizione: {(showCorrectAnswer || word).definition}
+              </div>
+              {waitingForContinue && (
+                <button
+                  type="button"
+                  onClick={() => { setWaitingForContinue(false); nextWord(); }}
+                  className="mt-2 bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
+                >
+                  Continua
+                </button>
+              )}
+            </div>
+          )}
+
           {!waitingForContinue && (
             <>
               <div className="flex gap-3 mb-3">
@@ -1612,6 +1682,7 @@ export default function LessicoGame() {
                   onChange={(e) => setFillBlankInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && isCorrect === null) {
+                      e.preventDefault();
                       checkFillBlank();
                     }
                   }}
@@ -1621,6 +1692,7 @@ export default function LessicoGame() {
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={checkFillBlank}
                   disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
                   className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1638,11 +1710,149 @@ export default function LessicoGame() {
                 {!showHint ? 'Mostra aiuto' : `Aiuto aggiuntivo (${hintLevel + 1})`}
               </button>
 
-              {isCorrect !== null && (
-                <div className={`text-center mt-6 text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
-                  {isCorrect ? '✨ Corretto!' : `❌ Era: ${word.term}`}
+            </>
+          )}
+
+          {waitingForContinue && showCorrectAnswer && (
+            <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
+          )}
+          <FoxInline />
+        </div>
+      </div>
+    );
+  };
+
+  // Phrase Mode (frasi con parola mancante)
+  const PhraseMode = () => {
+    const word = shuffledWords[currentIndex];
+    if (!word) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
+          <div className="max-w-lg mx-auto pt-4 text-center text-slate-300">
+            Nessuna frase disponibile per questa modalità. Torna indietro e seleziona un set.
+          </div>
+        </div>
+      );
+    }
+
+    const baseText = word.example || word.definition || '';
+    const { maskedText, targetWord } = useMemo(
+      () => maskTargetInText(word.term, baseText),
+      [word.term, baseText]
+    );
+    const hintData = showHint ? generateHint(targetWord, hintLevel + 1) : null;
+    const masked = useMemo(() => {
+      const term = targetWord || word.term || '';
+      if (term.length <= 2) return term;
+      const first = term[0];
+      const last = term[term.length - 1];
+      const middle = '_'.repeat(Math.max(term.length - 2, 0));
+      return `${first}${middle}${last}`;
+    }, [targetWord, word.term]);
+
+    if (hintData && hintData.lost && isCorrect === null) {
+      handleWrongAnswer();
+    }
+
+    const handleHintClick = () => {
+      if (!showHint) {
+        setShowHint(true);
+        setHintLevel(0);
+      } else {
+        setHintLevel(hintLevel + 1);
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
+        <div className="max-w-lg mx-auto pt-4">
+          <GameHeader />
+
+          <div className="text-center text-slate-400 mb-4">
+            {currentIndex + 1} / {shuffledWords.length}
+          </div>
+
+          <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-6 mb-6 border border-slate-700/50">
+            <p className="text-slate-500 text-sm mb-2">Caso d'uso:</p>
+            <p className="text-lg text-slate-100 mb-4">“{maskedText}”</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-cyan-300 font-mono text-lg">Parola:</p>
+              <p className="text-cyan-100 font-mono text-xl tracking-wide">{hintData ? hintData.hint : masked}</p>
+              <span className="text-slate-500 text-sm">({word.term.length} lettere)</span>
+            </div>
+
+            {showHint && hintData && !hintData.lost && (
+              <div className="mt-4 p-3 bg-cyan-950/30 rounded-lg border border-cyan-900/50">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-cyan-400 text-sm">💡 Aiuto {hintLevel + 1}:</p>
+                  <p className="text-cyan-500 text-xs">{Math.round(hintData.percent)}% visibile</p>
                 </div>
+              </div>
+            )}
+            {hintData && hintData.lost && (
+              <div className="mt-4 p-3 bg-red-900/30 rounded-lg border border-red-800/50 text-red-200 text-sm">
+                ❌ Troppi aiuti! Segno come sbagliato...
+              </div>
+            )}
+          </div>
+
+          {(isCorrect !== null || waitingForContinue) && (
+            <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-center space-y-2">
+              <div className={`text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
+                {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || { term: targetWord || word.term }).term}
+              </div>
+              <div className="text-sm font-normal text-slate-200">
+                Definizione: {(showCorrectAnswer || word).definition}
+              </div>
+              {waitingForContinue && (
+                <button
+                  type="button"
+                  onClick={() => { setWaitingForContinue(false); nextWord(); }}
+                  className="mt-2 bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
+                >
+                  Continua
+                </button>
               )}
+            </div>
+          )}
+
+          {!waitingForContinue && (
+            <>
+              <div className="flex gap-3 mb-3">
+                <input
+                  type="text"
+                  value={fillBlankInput}
+                  onChange={(e) => setFillBlankInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && isCorrect === null) {
+                      e.preventDefault();
+                      checkFillBlank();
+                    }
+                  }}
+                  placeholder="Scrivi la parola..."
+                  className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
+                  disabled={isCorrect !== null || (hintData && hintData.lost)}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={checkFillBlank}
+                  disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
+                  className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Verifica
+                </button>
+              </div>
+
+              <button
+                onClick={handleHintClick}
+                disabled={isCorrect !== null || (hintData && hintData.lost)}
+                className="w-full bg-slate-700/30 hover:bg-slate-700/50 text-slate-300 py-2 rounded-xl transition-colors border border-slate-600/50 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <HelpCircle className="w-4 h-4" />
+                {!showHint ? 'Mostra aiuto' : `Aiuto aggiuntivo (${hintLevel + 1})`}
+              </button>
+
             </>
           )}
 
@@ -1771,7 +1981,14 @@ export default function LessicoGame() {
             Menu
           </button>
           <button
-            onClick={() => startGame(gameMode === 'results' ? 'quiz' : gameMode)}
+            onClick={() => {
+              const modeToReplay = lastGameMode || (gameMode === 'results' ? 'quiz' : gameMode);
+              if (modeToReplay) {
+                startGame(modeToReplay);
+              } else {
+                setGameMode(null);
+              }
+            }}
             className="flex-1 bg-cyan-900 hover:bg-cyan-800 text-slate-100 py-3 rounded-xl transition-colors border border-cyan-800/50"
           >
             Rigioca
@@ -2167,6 +2384,7 @@ export default function LessicoGame() {
       gameMode === 'consultationFlashcard' ? <ConsultationFlashcardMode /> :
       gameMode === 'flashcard' ? <FlashcardMode /> :
       (gameMode === 'quiz' || gameMode === 'speedQuiz') ? <QuizMode /> :
+      gameMode === 'phrase' ? <PhraseMode /> :
       gameMode === 'fillBlank' ? <FillBlankMode /> :
       gameMode === 'match' ? <MatchMode /> :
       <MainMenu />}
