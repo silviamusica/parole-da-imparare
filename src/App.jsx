@@ -1398,27 +1398,28 @@ export default function LessicoGame() {
 
   // Header del gioco
   const GameHeader = () => (
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex items-center justify-between mb-6 bg-orange-300 text-slate-900 rounded-2xl px-4 py-3 shadow-lg border border-orange-400/70">
       <button
         onClick={() => setGameMode(null)}
-        className="text-slate-500 hover:text-slate-300 transition-colors"
+        className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity"
       >
-        ← Menu
+        <ChevronLeft className="w-5 h-5" />
+        <span>Menu</span>
       </button>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {wordsToReview.length > 0 && (
           <button
             onClick={() => setShowReviewPanel(true)}
-            className="bg-cyan-900/30 px-3 py-1 rounded-full flex items-center gap-1 hover:bg-cyan-900/50 transition-colors border border-cyan-800/50"
+            className="bg-slate-900/20 px-3 py-1 rounded-full flex items-center gap-1 hover:bg-slate-900/30 transition-colors border border-slate-900/30 text-slate-900"
           >
-            <BookOpen className="w-4 h-4 text-cyan-500" />
-            <span className="text-cyan-400 font-bold">{wordsToReview.length}</span>
+            <BookOpen className="w-4 h-4" />
+            <span className="font-bold">{wordsToReview.length}</span>
           </button>
         )}
         {gameMode !== 'match' && gameMode !== 'flashcard' && streak > 1 && (
-          <div className="bg-sky-900/30 px-3 py-1 rounded-full flex items-center gap-1 animate-pulse border border-sky-800/50">
-            <Flame className="w-4 h-4 text-sky-500" />
-            <span className="text-sky-400 font-bold">{streak}</span>
+          <div className="bg-white/30 px-3 py-1 rounded-full flex items-center gap-1 border border-white/50">
+            <Flame className="w-4 h-4 text-orange-700" />
+            <span className="font-bold">{streak}</span>
           </div>
         )}
       </div>
