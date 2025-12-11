@@ -5,6 +5,29 @@ import LogoFoxHappy from '../Logo occhi aperti Yasmina.png';
 import LogoYasminaOcchi from '../Logo Yasmina occhi.png';
 import demoCSV from '../lessico completo.csv?raw';
 
+// Normalizza date al formato dd-mm-yy
+const normalizeDate = (value) => {
+  if (!value) return '';
+  const val = `${value}`.trim();
+  const ddmmyy = val.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+  if (ddmmyy) {
+    const [_, d, m, y] = ddmmyy;
+    const dd = d.padStart(2, '0');
+    const mm = m.padStart(2, '0');
+    const yy = y.padStart(2, '0');
+    return `${dd}-${mm}-${yy}`;
+  }
+  const ymd = val.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+  if (ymd) {
+    const [_, y, m, d] = ymd;
+    const dd = d.padStart(2, '0');
+    const mm = m.padStart(2, '0');
+    const yy = y.slice(-2);
+    return `${dd}-${mm}-${yy}`;
+  }
+  return val;
+};
+
 // Parser CSV flessibile: supporta vecchio schema (parola, accento, definizione, etimologia, esempio, data, errori)
 // e nuovo schema: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO
 const parseCSV = (text) => {
@@ -45,30 +68,6 @@ const parseCSV = (text) => {
     if (pos !== -1 && row[pos] !== undefined) return row[pos];
     if (fallbackIdx !== null && row[fallbackIdx] !== undefined) return row[fallbackIdx];
     return '';
-  };
-
-  const normalizeDate = (value) => {
-    if (!value) return '';
-    const val = `${value}`.trim();
-    // Formato dd-mm-yy o dd/mm/yy o dd.mm.yy
-    const ddmmyy = val.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
-    if (ddmmyy) {
-      const [_, d, m, y] = ddmmyy;
-      const dd = d.padStart(2, '0');
-      const mm = m.padStart(2, '0');
-      const yy = y.padStart(2, '0');
-      return `${dd}-${mm}-${yy}`;
-    }
-    // Formato yyyy-mm-dd
-    const ymd = val.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
-    if (ymd) {
-      const [_, y, m, d] = ymd;
-      const dd = d.padStart(2, '0');
-      const mm = m.padStart(2, '0');
-      const yy = y.slice(-2);
-      return `${dd}-${mm}-${yy}`;
-    }
-    return val; // lascia com'è se non riconosciuto
   };
 
   const words = [];
@@ -190,20 +189,14 @@ export default function LessicoGame() {
   const [recentMode, setRecentMode] = useState('count'); // count | days7 | day1 | month1 | sinceDate
   const [recentSince, setRecentSince] = useState('');
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   const computeChunkAvailability = (pool) => {
-    const counts = {};
-    pool.forEach(w => {
-      const initial = (w.term?.[0] || '#').toLowerCase();
-      counts[initial] = (counts[initial] || 0) + 1;
-    });
     const total = pool.length;
+    const MIN_WORDS_FOR_TRANCHE = 24; // minimo 24 parole per abilitare tranche
     const availability = {};
     [10, 20, 33, 50].forEach(p => {
-      const numChunks = Math.max(1, Math.floor(100 / p));
-      const enoughTotal = total >= numChunks;
-      const perLetterOk = Object.values(counts).every(c => c >= numChunks);
-      availability[p] = enoughTotal && perLetterOk;
+      availability[p] = total >= MIN_WORDS_FOR_TRANCHE;
     });
     return availability;
   };
@@ -255,6 +248,7 @@ export default function LessicoGame() {
         const parsed = parseCSV(event.target.result);
         setWords(parsed);
         setShuffledWords([...parsed].sort(() => Math.random() - 0.5));
+        setDemoMode(false);
       };
       reader.readAsText(file);
     }
@@ -297,6 +291,7 @@ export default function LessicoGame() {
       }
       setWords(demoSet);
       setShuffledWords([...demoSet].sort(() => Math.random() - 0.5));
+      setDemoMode(true);
     } catch (err) {
       alert('Demo non disponibile.');
     }
@@ -984,14 +979,10 @@ export default function LessicoGame() {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere (nuovo schema)
       const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
-      const source = wordsToReview.length ? wordsToReview : words;
-      const rows = source.map(w => {
-        const errorValue = (() => {
-          if (w.commonErrors) return w.commonErrors;
-          if (reviewTerms.has(w.term)) return 'Da rivedere';
-          return 'NO';
-        })();
-        return `"${normalizeDate(w.insertedAt) || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${errorValue}","${w.learned ? 'SI' : 'NO'}"`;
+      const rows = words.map(w => {
+        const appreso = w.learned ? 'SI' : 'NO';
+        const errorValue = reviewTerms.has(w.term) ? 'Da rivedere' : (w.commonErrors || 'NO');
+        return `"${normalizeDate(w.insertedAt) || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${errorValue}","${appreso}"`;
       }).join('\n');
       return header + rows;
     } else if (format === 'csv_empty') {
@@ -1049,7 +1040,22 @@ export default function LessicoGame() {
 
   // Scarica come file
   const downloadFile = (format) => {
-    const text = formatWordsForExport(format);
+    // Se stai usando il demo e non hai parole filtrate, blocca download
+    if (demoMode && filteredPool.length === 0) {
+      triggerSelectionWarning('Non puoi scaricare il file demo: nessuna parola disponibile.');
+      return;
+    }
+    // Nessuna parola disponibile
+    if (words.length === 0 && wordsToReview.length === 0) {
+      triggerSelectionWarning('Nessuna parola da scaricare.');
+      return;
+    }
+    const textRaw = formatWordsForExport(format);
+    const text = typeof textRaw === 'string' ? textRaw : '';
+    if (!text) {
+      triggerSelectionWarning('Nessuna parola da scaricare con questi filtri.');
+      return;
+    }
     const extension = format.includes('csv') ? 'csv' : 'txt';
     const filename =
       format === 'csv_empty' ? 'parole-da-imparare.csv' :
@@ -2623,7 +2629,12 @@ export default function LessicoGame() {
                 <h2 className="text-3xl font-bold text-slate-100 mt-2">Consultazione</h2>
                 <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
                 {wordsToReview.length > 0 && (
-                  <p className="text-cyan-300 text-xs">Da rivedere: {wordsToReview.length}</p>
+                  <button
+                    onClick={() => setShowReviewPanel(true)}
+                    className="text-cyan-300 text-xs underline underline-offset-2 hover:text-cyan-200"
+                  >
+                    Da rivedere: {wordsToReview.length}
+                  </button>
                 )}
               </div>
               <div className="flex flex-wrap gap-3">
@@ -2760,6 +2771,14 @@ export default function LessicoGame() {
               <div>
                 <h2 className="text-3xl font-bold text-slate-100">Consultazione Flashcard</h2>
                 <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
+                {wordsToReview.length > 0 && (
+                  <button
+                    onClick={() => setShowReviewPanel(true)}
+                    className="text-cyan-300 text-xs underline underline-offset-2 hover:text-cyan-200"
+                  >
+                    Da rivedere: {wordsToReview.length}
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap gap-3">
                 <select
