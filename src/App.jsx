@@ -193,12 +193,12 @@ export default function LessicoGame() {
 
   const computeChunkAvailability = (pool) => {
     const total = pool.length;
-    const MIN_WORDS_FOR_TRANCHE = 24; // minimo 24 parole per abilitare tranche
-    const availability = {};
-    [10, 20, 33, 50].forEach(p => {
-      availability[p] = total >= MIN_WORDS_FOR_TRANCHE;
-    });
-    return availability;
+    return {
+      10: total > 210,
+      20: total > 110,
+      33: total > 65,
+      50: total >= 10
+    };
   };
 
   const triggerAddedFeedback = (type = 'added') => {
@@ -254,12 +254,12 @@ export default function LessicoGame() {
     }
   };
 
-  // Demo mode: carica 20 parole dal CSV incluso (bundled)
+  // Demo mode: carica 50 parole dal CSV incluso (bundled)
   const loadDemoWords = () => {
     try {
       const parsed = parseCSV(demoCSV);
 
-      const buildBalancedDemo = (list, target = 20) => {
+      const buildBalancedDemo = (list, target = 50) => {
         const grouped = {};
         list.forEach(w => {
           const letter = (w.term?.[0] || '#').toLowerCase();
@@ -284,7 +284,7 @@ export default function LessicoGame() {
         return demo;
       };
 
-      const demoSet = buildBalancedDemo(parsed, 20);
+      const demoSet = buildBalancedDemo(parsed, 50);
       if (!demoSet.length) {
         alert('Demo non disponibile.');
         return;
@@ -1260,7 +1260,7 @@ export default function LessicoGame() {
             onClick={loadDemoWords}
             className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-100 px-4 py-3 rounded-xl border border-slate-700/60 transition-colors"
           >
-            Prova demo (20 parole)
+            Prova demo (50 parole)
           </button>
           <p className="text-slate-500 text-xs mt-2">Se non hai ancora un file tuo, gioca con un set di esempio.</p>
 
