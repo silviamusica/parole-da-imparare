@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle } from 'lucide-react';
 import LogoYP from '../Logo YP.png';
 import LogoFoxHappy from '../Logo occhi aperti Yasmina.png';
+import LogoYasminaOcchi from '../Logo Yasmina occhi.png';
 import demoCSV from '../lessico completo.csv?raw';
 
 // Parser CSV semplice - STRUTTURA: parola, accento, definizione, etimologia, esempio, data_inserimento, errori (SI/NO)
@@ -103,6 +104,8 @@ export default function LessicoGame() {
   const [foxAnim, setFoxAnim] = useState(false);
   const foxAnimTimeout = useRef(null);
   const [foxVariant, setFoxVariant] = useState('default'); // default | happy
+  const [foxCycleStep, setFoxCycleStep] = useState(0); // 0 -> alt, 1 -> happy
+  const [foxAnimSize, setFoxAnimSize] = useState('big'); // small | big
   const audioCtxRef = useRef(null);
 
   const triggerAddedFeedback = (type = 'added') => {
@@ -162,14 +165,23 @@ export default function LessicoGame() {
   };
 
   const handleFoxClick = () => {
-    playCuteSound();
-    setFoxVariant('happy');
     setFoxAnim(true);
+
+    if (foxCycleStep === 0) {
+      setFoxVariant('alt');
+      setFoxAnimSize('small'); // primo click: zoom leggero
+      setFoxCycleStep(1);
+    } else {
+      setFoxVariant('happy');
+      setFoxAnimSize('big'); // secondo click: zoom ampio
+      setFoxCycleStep(0);
+    }
+
     if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
     foxAnimTimeout.current = setTimeout(() => {
       setFoxAnim(false);
       setFoxVariant('default');
-    }, 800);
+    }, 2000);
   };
 
   // Gestione upload file
@@ -299,22 +311,30 @@ export default function LessicoGame() {
   // Genera hint tipo impiccato - PROGRESSIVO (deterministico, niente shuffle a ogni render)
   const generateHint = (word, level) => {
     const len = word.length;
-    const revealed = new Set([0, len - 1]);
+    if (len <= 2) {
+      return { hint: word, lost: level > 0, percent: 100 };
+    }
 
+    // Indice centrale (preferisci il “centro” per primo)
+    const mid = Math.floor(len / 2);
+    const pool = [];
+    for (let i = 1; i < len - 1; i++) {
+      if (i !== mid) pool.push(i);
+    }
+    // Ordine random deterministico per evitare cambi ad ogni render
+    const rng = (seed) => {
+      let x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+    const shuffledPool = [...pool].map((v, i) => ({ v, r: rng(i + len) })).sort((a, b) => a.r - b.r).map(o => o.v);
+
+    const revealed = new Set([0, len - 1]); // includi prima e ultima
     if (level > 0) {
-      // Ordine deterministico dal centro verso l'esterno per evitare che le lettere cambino posizione
-      const middleOrder = [];
-      let left = 1;
-      let right = len - 2;
-      while (left <= right) {
-        middleOrder.push(left);
-        if (left !== right) middleOrder.push(right);
-        left += 1;
-        right -= 1;
-      }
-
-      for (let i = 0; i < Math.min(level, middleOrder.length); i++) {
-        revealed.add(middleOrder[i]);
+      revealed.add(mid); // primo aiuto: la centrale
+      const remaining = shuffledPool;
+      const extraToShow = Math.max(0, level - 1);
+      for (let i = 0; i < Math.min(extraToShow, remaining.length); i++) {
+        revealed.add(remaining[i]);
       }
     }
 
@@ -484,16 +504,26 @@ export default function LessicoGame() {
 
   // Inizia nuovo gioco
   const startGame = (mode, limit) => {
-    const actualLimit = limit || questionLimit;
+    const basePool = getFilteredWords();
+    const actualLimit = limit ?? questionLimit ?? basePool.length;
     const minNeeded = mode === 'match' ? 6 : 1;
-    let pool = getWordPool();
 
-    if (pool.length < minNeeded) {
+    if (basePool.length < minNeeded) {
       alert('Nessuna parola disponibile per questa selezione (controlla filtro/solo sbagliate).');
       setShowModeSelection(false);
       setPendingMode(null);
       return;
     }
+
+    // Per il match, evita definizioni troppo lunghe; se non bastano, torna al pool completo
+    let matchPool = basePool.filter(w => (w.definition || '').length <= 180);
+    if (matchPool.length < 6) matchPool = basePool;
+
+    const shuffledPool = shuffleArray(basePool);
+    const limitApplied = Math.min(actualLimit, shuffledPool.length);
+    const gameWords = mode === 'match'
+      ? shuffleArray(matchPool).slice(0, Math.min(6, matchPool.length))
+      : shuffledPool.slice(0, limitApplied);
 
     setGameMode(mode);
     setQuestionLimit(actualLimit);
@@ -510,25 +540,26 @@ export default function LessicoGame() {
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     
-    setActivePool(pool);
-    const limitApplied = Math.min(actualLimit || pool.length, pool.length);
-    const shuffled = shuffleArray(pool).slice(0, mode === 'match' ? 6 : limitApplied || pool.length);
-    setShuffledWords(shuffled);
+    setActivePool(basePool);
+    setShuffledWords(gameWords);
     
     if (mode === 'quiz' || mode === 'speedQuiz') {
-      setQuizOptions(generateQuizOptions(shuffled[0], pool));
+      setQuizOptions(generateQuizOptions(gameWords[0], basePool));
       if (mode === 'speedQuiz') {
         setTimeLeft(SPEED_TIME);
         setIsTimerRunning(true);
       }
     } else if (mode === 'match') {
-      initMatchGame(shuffled);
+      initMatchGame(gameWords);
     }
   };
 
   // Inizializza gioco memory/match
   const initMatchGame = (pool) => {
-    const source = (pool && pool.length ? pool : getWordPool());
+    const baseSource = (pool && pool.length ? pool : getWordPool());
+    // Evita definizioni troppo lunghe che uscirebbero dalla card
+    const filteredSource = baseSource.filter(w => (w.definition || '').length <= 180);
+    const source = filteredSource.length >= 6 ? filteredSource : baseSource;
     if (source.length < 6) {
       alert('Servono almeno 6 parole per giocare al Memory con questo filtro.');
       return;
@@ -604,12 +635,13 @@ export default function LessicoGame() {
     setIsTimerRunning(false);
     playSound('good');
     setFoxVariant('happy');
+    setFoxAnimSize('big');
     setFoxAnim(true);
     if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
     foxAnimTimeout.current = setTimeout(() => {
       setFoxAnim(false);
       setFoxVariant('default');
-    }, 900);
+    }, 2000);
     
     // Per le risposte corrette, passa subito alla prossima (veloce)
     setTimeout(nextWord, 800);
@@ -848,9 +880,9 @@ export default function LessicoGame() {
             aria-label="Logo"
           >
             <img
-              src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
+              src={foxVariant === 'happy' ? LogoFoxHappy : foxVariant === 'alt' ? LogoYasminaOcchi : LogoYP}
               alt="Logo"
-              className={`h-[84px] w-auto drop-shadow-xl transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
+              className={`h-[84px] w-auto drop-shadow-xl transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
             />
           </button>
         </div>
@@ -899,29 +931,24 @@ export default function LessicoGame() {
               aria-label="Logo"
               className="hover:scale-105 transition-transform"
             >
-              <img
-                src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
-                alt="Logo"
-                className={`h-[74px] w-auto drop-shadow-xl transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
-              />
-            </button>
-          </div>
+            <img
+              src={foxVariant === 'happy' ? LogoFoxHappy : foxVariant === 'alt' ? LogoYasminaOcchi : LogoYP}
+              alt="Logo"
+              className={`h-[74px] w-auto drop-shadow-xl transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
+            />
+          </button>
+        </div>
           <h1 className="text-4xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
           <div className="flex items-center justify-center gap-2 text-slate-400">
             <p>{words.length} parole caricate</p>
-            <div className="relative group">
-              <button
-                onClick={() => setShowInstructions(true)}
-                className="w-5 h-5 rounded-full border border-slate-500 text-slate-300 text-xs leading-none flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
-                title="Istruzioni"
-              >
-                i
-              </button>
-                  <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-32 bg-slate-900 text-slate-100 text-xs rounded-xl p-2 border border-slate-700 shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition text-center z-50">
-                    Istruzioni
-                  </div>
-                </div>
-              </div>
+            <button
+              onClick={() => setShowInstructions(true)}
+              className="w-5 h-5 rounded-full border border-slate-500 text-slate-300 text-xs leading-none flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+              aria-label="Istruzioni"
+            >
+              i
+            </button>
+          </div>
         </div>
 
         <div className="bg-slate-800/50 border border-slate-700/60 p-6 rounded-3xl mb-6 shadow-xl">
@@ -1135,15 +1162,6 @@ export default function LessicoGame() {
           </div>
         )}
 
-        <button
-          onClick={() => setWords([])}
-          className="mt-8 mx-auto block text-slate-200 hover:text-cyan-300 transition-colors text-sm"
-          aria-label="Carica un altro file"
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          Carica un altro file
-        </button>
       </div>
     </div>
   );
@@ -1369,9 +1387,9 @@ export default function LessicoGame() {
         className="hover:scale-110 transition-transform"
       >
         <img
-          src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
+          src={foxVariant === 'happy' ? LogoFoxHappy : foxVariant === 'alt' ? LogoYasminaOcchi : LogoYP}
           alt="Logo"
-          className={`h-[70px] w-auto transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
+          className={`h-[70px] w-auto transition-transform ${foxAnim ? (foxAnimSize === 'small' ? 'scale-110' : 'scale-125') : ''}`}
         />
       </button>
     </div>
@@ -1434,6 +1452,7 @@ export default function LessicoGame() {
               <Check className="w-5 h-5" /> La so!
             </button>
           </div>
+          <FoxInline />
         </div>
       </div>
     );
@@ -1506,6 +1525,7 @@ export default function LessicoGame() {
           {waitingForContinue && showCorrectAnswer && (
             <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
           )}
+          <FoxInline />
         </div>
       </div>
     );
