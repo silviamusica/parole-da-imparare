@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle } from 'lucide-react';
+import LogoYP from '../Logo YP.png';
+import LogoFoxHappy from '../Logo occhi aperti Yasmina.png';
 
 // Parser CSV semplice - STRUTTURA: parola, accento, definizione, etimologia, esempio, data_inserimento, errori (SI/NO)
 const parseCSV = (text) => {
@@ -74,6 +76,7 @@ export default function LessicoGame() {
   const [showHint, setShowHint] = useState(false);
   const [hintLevel, setHintLevel] = useState(0);
   const [copyFeedback, setCopyFeedback] = useState('');
+  const [exportFormat, setExportFormat] = useState('text');
   const [waitingForContinue, setWaitingForContinue] = useState(false);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(null);
   const [flashcardChoice, setFlashcardChoice] = useState(null);
@@ -90,10 +93,14 @@ export default function LessicoGame() {
   const [studyView, setStudyView] = useState('list'); // list | flashcard
   const [showInstructions, setShowInstructions] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(null); // null | 'added' | 'duplicate'
+  const [showReviewInfo, setShowReviewInfo] = useState(false);
   const [consultOpenLetter, setConsultOpenLetter] = useState(null);
   const [consultFlashOpenLetter, setConsultFlashOpenLetter] = useState(null);
   const [consultFlipped, setConsultFlipped] = useState({});
   const consultShuffleRef = useRef({});
+  const [foxAnim, setFoxAnim] = useState(false);
+  const foxAnimTimeout = useRef(null);
+  const [foxVariant, setFoxVariant] = useState('default'); // default | happy
   const audioCtxRef = useRef(null);
 
   const triggerAddedFeedback = (type = 'added') => {
@@ -122,6 +129,45 @@ export default function LessicoGame() {
     } catch (e) {
       // Ignora errori audio (es. autoplay block)
     }
+  };
+
+  // Suono tenero per la volpe
+  const playCuteSound = () => {
+    if (!soundOn) return;
+    try {
+      const ctx = audioCtxRef.current || new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = ctx;
+      const now = ctx.currentTime;
+
+      // Pop piano e morbido
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.05, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch (e) {
+      // Ignora errori audio
+    }
+  };
+
+  const handleFoxClick = () => {
+    playCuteSound();
+    setFoxVariant('happy');
+    setFoxAnim(true);
+    if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
+    foxAnimTimeout.current = setTimeout(() => {
+      setFoxAnim(false);
+      setFoxVariant('default');
+    }, 800);
   };
 
   // Gestione upload file
@@ -513,6 +559,13 @@ export default function LessicoGame() {
     setGameStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
     setIsTimerRunning(false);
     playSound('good');
+    setFoxVariant('happy');
+    setFoxAnim(true);
+    if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
+    foxAnimTimeout.current = setTimeout(() => {
+      setFoxAnim(false);
+      setFoxVariant('default');
+    }, 900);
     
     // Per le risposte corrette, passa subito alla prossima (veloce)
     setTimeout(nextWord, 800);
@@ -684,12 +737,32 @@ export default function LessicoGame() {
     </div>
   );
 
+  const InfoTooltip = ({ text }) => (
+    <span className="relative group inline-flex items-center">
+      <HelpCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-200 transition-colors" />
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap bg-slate-900 text-slate-100 text-[11px] px-2 py-1 rounded-lg border border-slate-700 shadow-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
+        {text}
+      </span>
+    </span>
+  );
+
   // Componente Upload
   const UploadScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 flex items-center justify-center p-4">
       <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-center border border-slate-700/50">
-        <div className="w-20 h-20 bg-gradient-to-br from-cyan-800 to-sky-900 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-          <BookOpen className="w-10 h-10 text-slate-200" />
+        <div className="mx-auto mb-6 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={handleFoxClick}
+            className="transition-transform hover:scale-105"
+            aria-label="Logo"
+          >
+            <img
+              src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
+              alt="Logo"
+              className={`h-[84px] w-auto drop-shadow-xl transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
+            />
+          </button>
         </div>
         <h1 className="text-3xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
         <p className="text-slate-400 mb-8">Impara parole nuove giocando!</p>
@@ -711,6 +784,20 @@ export default function LessicoGame() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
       <div className="max-w-2xl mx-auto pt-8">
         <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-3">
+            <button
+              type="button"
+              onClick={handleFoxClick}
+              aria-label="Logo"
+              className="hover:scale-105 transition-transform"
+            >
+              <img
+                src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
+                alt="Logo"
+                className={`h-[74px] w-auto drop-shadow-xl transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
+              />
+            </button>
+          </div>
           <h1 className="text-4xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
           <div className="flex items-center justify-center gap-2 text-slate-400">
             <p>{words.length} parole caricate</p>
@@ -784,9 +871,10 @@ export default function LessicoGame() {
               )}
 
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner w-full">
-                <div className="flex flex-col text-sm leading-tight">
+                <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Solo sbagliate</span>
-                  <span className="text-xs text-slate-400">({wordsToReview.length})</span>
+                  <InfoTooltip text="Usa solo le parole già aggiunte a 'Da rivedere'." />
+                  <span className="text-xs text-slate-400 ml-1">({wordsToReview.length})</span>
                 </div>
                 <input
                   type="checkbox"
@@ -797,8 +885,9 @@ export default function LessicoGame() {
               </label>
 
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-900/70 border border-slate-700 rounded-2xl px-4 py-3 shadow-inner w-full">
-                <div className="flex flex-col text-sm leading-tight">
+                <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Solo errori CSV</span>
+                  <InfoTooltip text="Scarica il CSV degli errori, poi ricaricalo per esercitarti e tenere traccia." />
                 </div>
                 <input
                   type="checkbox"
@@ -813,15 +902,15 @@ export default function LessicoGame() {
 
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4 mb-6">
           <div className="flex gap-2 p-1 bg-slate-900/60 rounded-2xl border border-slate-700/50">
-            <button
-              onClick={() => setMenuTab('consultation')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'consultation' ? 'bg-yellow-400 text-slate-900 shadow-lg scale-[1.02]' : 'text-slate-300 hover:text-yellow-200 border border-transparent hover:border-yellow-300'}`}
+              <button
+                onClick={() => setMenuTab('consultation')}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'consultation' ? 'bg-orange-300 text-slate-900 shadow-lg scale-[1.02]' : 'text-slate-300 hover:text-orange-200 border border-transparent hover:border-orange-300'}`}
             >
               Studio
             </button>
             <button
               onClick={() => setMenuTab('games')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'games' ? 'bg-yellow-400 text-slate-900 shadow-lg scale-[1.02]' : 'text-slate-300 hover:text-yellow-200 border border-transparent hover:border-yellow-300'}`}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'games' ? 'bg-orange-300 text-slate-900 shadow-lg scale-[1.02]' : 'text-slate-300 hover:text-orange-200 border border-transparent hover:border-orange-300'}`}
             >
               Giochi
             </button>
@@ -935,12 +1024,20 @@ export default function LessicoGame() {
           </div>
         )}
 
-        <button 
+        <button
           onClick={() => setWords([])}
-          className="mt-8 text-slate-500 hover:text-slate-300 transition-colors mx-auto block"
-        >
-          Carica un altro file
-        </button>
+          className="mt-8 mx-auto block hover:scale-105 transition-transform"
+        aria-label="Carica un altro file"
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClickCapture={handleFoxClick}
+      >
+        <img
+          src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
+          alt="Logo"
+          className={`h-[84px] w-auto drop-shadow-lg transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
+        />
+      </button>
       </div>
     </div>
   );
@@ -1025,15 +1122,24 @@ export default function LessicoGame() {
   const ReviewPanel = () => (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto">
       <div className="min-h-screen flex items-center justify-center p-4 py-8">
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl max-w-2xl w-full border border-slate-700/50 flex flex-col max-h-[85vh]">
-          <div className="p-6 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0">
-            <div>
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl max-w-2xl w-full border border-slate-700/50 flex flex-col max-h-[92vh]">
+          <div className="p-5 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 gap-3">
+            <div className="flex items-start gap-2">
               <h2 className="text-2xl font-bold text-slate-100">📚 Parole da rivedere</h2>
-              <p className="text-slate-400">{wordsToReview.length} parole</p>
-              <p className="text-slate-500 text-sm mt-1">
-                Qui trovi gli errori del gioco o le parole che hai marcato. Puoi scaricare TXT/CSV degli errori, oppure il CSV completo per salvare la sessione e ricaricarla la volta successiva con gli errori già segnati.
-              </p>
+              <div
+                className="relative"
+                onMouseEnter={() => setShowReviewInfo(true)}
+                onMouseLeave={() => setShowReviewInfo(false)}
+              >
+                <HelpCircle className="w-5 h-5 text-slate-400 hover:text-slate-200 cursor-pointer" />
+                {showReviewInfo && (
+                  <div className="absolute z-50 top-6 left-0 bg-slate-900 text-slate-100 text-xs rounded-lg border border-slate-700 shadow-xl p-3 w-72">
+                    Lista delle parole sbagliate o segnate. Puoi scaricarle e, con il CSV completo, ricaricare la sessione successiva mantenendo gli errori segnati. Quando le impari, rimuovile dalla lista.
+                  </div>
+                )}
+              </div>
             </div>
+            <p className="text-slate-400 text-sm">{wordsToReview.length} parole</p>
             <button
               onClick={() => setShowReviewPanel(false)}
               className="text-slate-500 hover:text-slate-300 text-2xl"
@@ -1083,29 +1189,23 @@ export default function LessicoGame() {
                   </div>
                 )}
                 
-                <p className="text-slate-400 text-sm text-center">Esporta la lista</p>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => downloadFile('text')}
-                    className="bg-slate-700/30 hover:bg-slate-700/50 text-slate-200 py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-600/50 text-sm"
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className="text-slate-400 text-sm flex-shrink-0">Scarica:</label>
+                  <select
+                    value={exportFormat}
+                    onChange={(e) => setExportFormat(e.target.value)}
+                    className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
                   >
-                    ⬇️ Scarica TXT
-                  </button>
+                    <option value="text">TXT (parole da rivedere/errori)</option>
+                    <option value="csv">CSV errori/da rivedere</option>
+                  </select>
                   <button
-                    onClick={() => downloadFile('csv')}
-                    className="bg-slate-700/30 hover:bg-slate-700/50 text-slate-200 py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-600/50 text-sm"
+                    onClick={() => downloadFile(exportFormat)}
+                    className="bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
                   >
-                    ⬇️ CSV errori
+                    Scarica
                   </button>
                 </div>
-                
-                <button
-                  onClick={() => downloadFile('csv_full')}
-                  className="w-full bg-cyan-900/30 hover:bg-cyan-900/50 text-cyan-400 py-3 rounded-xl transition-colors border border-cyan-800/50 flex items-center justify-center gap-2 text-sm"
-                >
-                  ⬇️ CSV completo con errori segnati
-                </button>
                 
                 <button
                   onClick={() => setWordsToReview([])}
@@ -1113,6 +1213,8 @@ export default function LessicoGame() {
                 >
                   🗑️ Svuota lista
                 </button>
+
+                <FoxInline />
               </div>
             </>
           )}
@@ -1153,6 +1255,23 @@ export default function LessicoGame() {
           {soundOn ? '🔊' : '🔇'}
         </button>
       </div>
+    </div>
+  );
+
+  const FoxInline = () => (
+    <div className="flex justify-center mt-6">
+      <button
+        type="button"
+        onClick={handleFoxClick}
+        aria-label="Logo volpe"
+        className="hover:scale-110 transition-transform"
+      >
+        <img
+          src={foxVariant === 'happy' ? LogoFoxHappy : LogoYP}
+          alt="Logo"
+          className={`h-[70px] w-auto transition-transform ${foxAnim ? 'animate-bounce scale-120' : ''}`}
+        />
+      </button>
     </div>
   );
 
@@ -1213,6 +1332,7 @@ export default function LessicoGame() {
               <Check className="w-5 h-5" /> La so!
             </button>
           </div>
+          <FoxInline />
         </div>
       </div>
     );
@@ -1285,6 +1405,7 @@ export default function LessicoGame() {
           {waitingForContinue && showCorrectAnswer && (
             <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
           )}
+          <FoxInline />
         </div>
       </div>
     );
@@ -1293,7 +1414,25 @@ export default function LessicoGame() {
   // Fill Blank Mode
   const FillBlankMode = () => {
     const word = shuffledWords[currentIndex];
-    const hintData = showHint ? generateHint(word.term, hintLevel) : null;
+    if (!word) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
+          <div className="max-w-lg mx-auto pt-4 text-center text-slate-300">
+            Nessuna parola disponibile per questa modalità. Torna indietro e seleziona un set.
+          </div>
+        </div>
+      );
+    }
+    // Primo aiuto considera già le due lettere date: aggiungiamo subito una lettera extra (hintLevel + 1)
+    const hintData = showHint ? generateHint(word.term, hintLevel + 1) : null;
+    const masked = useMemo(() => {
+      const term = word.term || '';
+      if (term.length <= 2) return term;
+      const first = term[0];
+      const last = term[term.length - 1];
+      const middle = '_'.repeat(Math.max(term.length - 2, 0));
+      return `${first}${middle}${last}`;
+    }, [word.term]);
     
     // Se l'aiuto supera l'80%, segna come sbagliato automaticamente
     if (hintData && hintData.lost && isCorrect === null) {
@@ -1321,6 +1460,11 @@ export default function LessicoGame() {
           <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-6 mb-6 border border-slate-700/50">
             <p className="text-slate-500 text-sm mb-2">Scrivi la parola:</p>
             <p className="text-xl text-slate-100 mb-4">{word.definition}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-cyan-300 font-mono text-lg">Schema:</p>
+              <p className="text-cyan-100 font-mono text-xl tracking-wide">{masked}</p>
+              <span className="text-slate-500 text-sm">({word.term.length} lettere)</span>
+            </div>
             
             {showHint && hintData && (
               <div className="mt-4 p-3 bg-cyan-950/30 rounded-lg border border-cyan-900/50">
@@ -1385,6 +1529,7 @@ export default function LessicoGame() {
           {waitingForContinue && showCorrectAnswer && (
             <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
           )}
+          <FoxInline />
         </div>
       </div>
     );
@@ -1442,6 +1587,8 @@ export default function LessicoGame() {
           <RotateCcw className="w-5 h-5 inline mr-2" />
           Nuova partita
         </button>
+
+        <FoxInline />
       </div>
     </div>
   );
@@ -1450,24 +1597,20 @@ export default function LessicoGame() {
   const ResultsScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 flex items-center justify-center p-4">
       <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-center border border-slate-700/50">
-        <div className="w-20 h-20 bg-gradient-to-br from-cyan-800 to-sky-900 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Trophy className="w-10 h-10 text-slate-200" />
+        <div className="flex justify-center mb-4">
+          <img src={LogoFoxHappy} alt="Logo occhi aperti" className="h-[84px] w-auto drop-shadow-xl" />
         </div>
         
-        <h2 className="text-3xl font-bold text-slate-100 mb-2">Partita finita!</h2>
+        <h2 className="text-3xl font-bold text-slate-100 mb-6">Partita finita!</h2>
         
-        <div className="grid grid-cols-2 gap-4 my-8">
-          <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-            <p className="text-3xl font-bold text-sky-400">{maxStreak}</p>
-            <p className="text-slate-400 text-sm">Max streak</p>
-          </div>
+        <div className="grid grid-cols-2 gap-4 my-4">
           <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
             <p className="text-3xl font-bold text-cyan-400">{gameStats.correct}</p>
             <p className="text-slate-400 text-sm">Corrette</p>
           </div>
           <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-            <p className="text-3xl font-bold text-red-400">{gameStats.wrong}</p>
-            <p className="text-slate-400 text-sm">Sbagliate</p>
+            <p className="text-3xl font-bold text-orange-300">{gameStats.total}</p>
+            <p className="text-slate-400 text-sm">Totale</p>
           </div>
         </div>
 
