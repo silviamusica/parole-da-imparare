@@ -222,17 +222,15 @@ export default function LessicoGame() {
 
   const handleFoxClick = () => {
     setFoxAnim(true);
-
     if (foxCycleStep === 0) {
-      setFoxVariant('alt');
+      setFoxVariant('feedback-ok'); // occhi aperti
       setFoxAnimSize('small'); // primo click: zoom leggero
       setFoxCycleStep(1);
     } else {
-      setFoxVariant('happy');
+      setFoxVariant('feedback-wrong'); // testa alzata
       setFoxAnimSize('big'); // secondo click: zoom ampio
       setFoxCycleStep(0);
     }
-
     if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
     foxAnimTimeout.current = setTimeout(() => {
       setFoxAnim(false);
@@ -241,25 +239,28 @@ export default function LessicoGame() {
   };
 
   // Gestione upload file
+  const processCSVFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = parseCSV(event.target.result);
+        if (!parsed.length) {
+          throw new Error('CSV vuoto o non compatibile');
+        }
+        setWords(parsed);
+        setShuffledWords([...parsed].sort(() => Math.random() - 0.5));
+        setDemoMode(false);
+      } catch (err) {
+        triggerSelectionWarning('File non compatibile. Esporta da Google Sheet come CSV con intestazione.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const parsed = parseCSV(event.target.result);
-          if (!parsed.length) {
-            throw new Error('CSV vuoto o non compatibile');
-          }
-          setWords(parsed);
-          setShuffledWords([...parsed].sort(() => Math.random() - 0.5));
-          setDemoMode(false);
-        } catch (err) {
-          triggerSelectionWarning('File non compatibile. Esporta da Google Sheet come CSV con intestazione.');
-        }
-      };
-      reader.readAsText(file);
-    }
+    processCSVFile(file);
   };
 
   // Demo mode: carica 50 parole dal CSV incluso (bundled)
@@ -582,11 +583,11 @@ export default function LessicoGame() {
 
   const InstructionsModal = () => (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto"
       onClick={() => setShowInstructions(false)}
     >
       <div
-        className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full p-6 text-slate-100 shadow-2xl"
+        className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full p-6 text-slate-100 shadow-2xl mt-6 max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
@@ -598,7 +599,7 @@ export default function LessicoGame() {
             ✕
           </button>
         </div>
-        <div className="space-y-3 text-sm text-slate-200 leading-relaxed">
+        <div className="space-y-4 text-sm text-slate-200 leading-relaxed">
           <div>
             <p className="font-semibold">1. 🔍 Filtri</p>
             <p>Se lasci “tutte”, usi l’intero database. Puoi filtrare per:</p>
@@ -609,15 +610,13 @@ export default function LessicoGame() {
               <li>🔁 da rivedere (errori o parole segnate durante il gioco)</li>
             </ul>
           </div>
-
-          <div className="space-y-1">
+          <div className="border-t border-slate-700 pt-4 space-y-1">
             <p className="font-semibold">2. 📚 Tab Studio</p>
             <p>Puoi studiare in due modi:</p>
             <p>1️⃣ <strong>Vista Schede</strong>: elenco con definizione, etimologia ed esempi. Da qui puoi aggiungere parole alla sezione “Parole da rivedere”.</p>
             <p>2️⃣ <strong>Vista Flashcard</strong>: vedi la parola, clicchi per girarla e leggere i dettagli; poi puoi decidere se aggiungerla a “Parole da rivedere”.</p>
           </div>
-
-          <div className="space-y-1">
+          <div className="border-t border-slate-700 pt-4 space-y-1">
             <p className="font-semibold">3. 🔁 Parole da rivedere</p>
             <p>Raccoglie gli errori commessi nei giochi o le parole selezionate nello studio.</p>
             <p>Funzioni:</p>
@@ -628,8 +627,7 @@ export default function LessicoGame() {
             </ul>
             <p className="mt-1">Quando una parola è acquisita, rimuovila da “Parole da rivedere”.</p>
           </div>
-
-          <div className="space-y-1">
+          <div className="border-t border-slate-700 pt-4 space-y-1">
             <p className="font-semibold">4. 🎮 Tab Giochi</p>
             <p>Quiz, Speed, Completa, Memory usano sempre il set filtrato all’inizio. Ideali per ripassare dopo lo studio.</p>
           </div>
@@ -1239,12 +1237,12 @@ export default function LessicoGame() {
             className="transition-transform hover:scale-105"
             aria-label="Logo"
           >
-            <img
+              <img
               src={
                 foxVariant === 'feedback-ok'
-                  ? LogoVolpinaTestaAlzata
-                  : foxVariant === 'feedback-wrong'
                   ? LogoVolpinaOcchiAperti
+                  : foxVariant === 'feedback-wrong'
+                  ? LogoVolpinaTestaAlzata
                   : foxVariant === 'happy'
                   ? LogoVolpinaOcchiAperti
                   : foxVariant === 'alt'
@@ -1260,22 +1258,29 @@ export default function LessicoGame() {
         <p className="text-slate-400 mb-8">Impara parole nuove giocando!</p>
         
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-slate-200 font-medium">
-            <p>Carica il tuo CSV</p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-slate-200 font-medium">Carica il tuo CSV</p>
             <button
               onClick={() => setShowUploadInfo(true)}
-              className="w-6 h-6 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
-              aria-label="Info CSV"
+              className="w-7 h-7 rounded-full border border-slate-600 text-slate-300 text-sm flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+              aria-label="Info formato CSV"
             >
               i
             </button>
           </div>
           <label className="block cursor-pointer group">
-            <div className="border-2 border-dashed border-slate-600 rounded-2xl p-8 transition-all group-hover:border-cyan-700 group-hover:bg-slate-700/20">
+            <div
+              className="border-2 border-dashed border-slate-600 rounded-2xl p-8 transition-all group-hover:border-cyan-700 group-hover:bg-slate-700/20"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files?.[0];
+                processCSVFile(file);
+              }}
+            >
               <Upload className="w-12 h-12 text-slate-500 mx-auto mb-4 group-hover:text-cyan-600 transition-colors" />
-              <p className="text-slate-200 font-medium mb-2">Formato CSV con 12 colonne</p>
-              <p className="text-slate-500 text-sm">Separatore: virgola, UTF-8, prima riga di intestazione.</p>
-              <p className="text-slate-500 text-xs mt-1">Ordine colonne: Data, Termine, Accento, Definizione, Etimologia, Esempio1/2/3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</p>
+              <p className="text-slate-200 font-medium mb-1">Trascina o seleziona un file CSV</p>
+              <p className="text-slate-500 text-sm">Formato: CSV UTF-8 con intestazione.</p>
             </div>
             <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
           </label>
@@ -1317,9 +1322,9 @@ export default function LessicoGame() {
             <img
               src={
                 foxVariant === 'feedback-ok'
-                  ? LogoVolpinaTestaAlzata
-                  : foxVariant === 'feedback-wrong'
                   ? LogoVolpinaOcchiAperti
+                  : foxVariant === 'feedback-wrong'
+                  ? LogoVolpinaTestaAlzata
                   : foxVariant === 'happy'
                   ? LogoVolpinaOcchiAperti
                   : foxVariant === 'alt'
@@ -1332,8 +1337,9 @@ export default function LessicoGame() {
           </button>
         </div>
           <h1 className="text-4xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
-          <div className="flex items-center justify-center gap-3 text-slate-400">
+          <div className="flex items-center justify-center gap-2 text-slate-400">
             <p>{filteredPool.length} parole disponibili</p>
+            <span className="text-slate-500">-</span>
             <button
               onClick={() => setShowInstructions(true)}
               className="text-slate-200 underline decoration-dotted underline-offset-4 hover:text-cyan-300 text-sm"
@@ -1347,28 +1353,18 @@ export default function LessicoGame() {
         <div className="bg-slate-800/50 border border-slate-700/60 p-6 rounded-3xl mb-6 shadow-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-200 font-bold text-lg flex items-center gap-2">
-                Selezione parole
-                <button
-                  type="button"
-                  onClick={() => setShowSelectionInfo(true)}
-                  className="w-5 h-5 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
-                  aria-label="Info selezione parole"
-                >
-                  i
-                </button>
+              <p className="text-slate-200 font-bold text-lg">Seleziona le parole con cui giocare</p>
+              <p className="text-slate-400 text-sm mt-1">
+                Disponibili: {filteredPool.length}
+                {learnedFilter !== 'all' && (
+                  <span className="text-xs text-cyan-300 ml-2">
+                    ({learnedFilter === 'yes' ? 'solo apprese' : 'solo da apprendere'})
+                  </span>
+                )}
+                {onlyWrongSubset && (
+                  <span className="text-xs text-orange-300 ml-2">(solo sbagliate)</span>
+                )}
               </p>
-          <p className="text-slate-400 text-sm mt-1">
-            Disponibili: {filteredPool.length}
-            {learnedFilter !== 'all' && (
-              <span className="text-xs text-cyan-300 ml-2">
-                ({learnedFilter === 'yes' ? 'solo apprese' : 'solo da apprendere'})
-              </span>
-            )}
-            {onlyWrongSubset && (
-              <span className="text-xs text-orange-300 ml-2">(solo sbagliate)</span>
-            )}
-          </p>
             </div>
             <button
               onClick={() => setShowSelectionPanel(true)}
@@ -1723,8 +1719,10 @@ export default function LessicoGame() {
           className="bg-slate-900 rounded-3xl max-w-3xl w-full border border-slate-700/50 p-6 shadow-2xl space-y-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-slate-100">Selezione parole</h2>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-slate-100">Imposta i filtri</h2>
+            </div>
             <button
               onClick={() => setShowSelectionPanel(false)}
               className="text-slate-400 hover:text-slate-200 text-xl"
@@ -1735,10 +1733,19 @@ export default function LessicoGame() {
 
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <p className="text-slate-400 text-sm">Configura tranche, parole da rivedere/apprese e parole più recenti da studiare.</p>
-              <p className="text-slate-300 text-sm">
-                Selezionate: <span className="font-semibold text-cyan-300">{filteredPool.length}</span>
-              </p>
+              <div className="flex items-center gap-2 text-slate-300 text-sm">
+                <span>
+                  Selezionate: <span className="font-semibold text-cyan-300">{filteredPool.length}</span>
+                </span>
+                <span className="text-slate-500">-</span>
+                <button
+                  onClick={() => setShowSelectionInfo(true)}
+                  className="text-slate-200 underline decoration-dotted underline-offset-4 hover:text-cyan-300 text-sm"
+                  aria-label="Istruzioni selezione parole"
+                >
+                  Istruzioni
+                </button>
+              </div>
             </div>
             <div className="grid gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1940,9 +1947,9 @@ export default function LessicoGame() {
         <img
           src={
             foxVariant === 'feedback-ok'
-              ? LogoVolpinaTestaAlzata
-              : foxVariant === 'feedback-wrong'
               ? LogoVolpinaOcchiAperti
+              : foxVariant === 'feedback-wrong'
+              ? LogoVolpinaTestaAlzata
               : foxVariant === 'happy'
               ? LogoVolpinaOcchiAperti
               : foxVariant === 'alt'
