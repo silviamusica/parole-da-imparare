@@ -159,7 +159,6 @@ export default function LessicoGame() {
   const [showModeSelection, setShowModeSelection] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
   const [wordsToReview, setWordsToReview] = useState([]);
-  const [showReviewPanel, setShowReviewPanel] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hintLevel, setHintLevel] = useState(0);
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -188,6 +187,7 @@ export default function LessicoGame() {
   const [playedWords, setPlayedWords] = useState([]);
   const reviewListRef = useRef(null);
   const reviewScrollPos = useRef(0);
+  const [showReviewPanel, setShowReviewPanel] = useState(false);
   const selectionTimeoutRef = useRef(null);
   const triggerSelectionWarning = (message, duration = 5000) => {
     if (selectionTimeoutRef.current) clearTimeout(selectionTimeoutRef.current);
@@ -1301,7 +1301,7 @@ export default function LessicoGame() {
           </button>
         </div>
         <div className="space-y-3 text-sm leading-relaxed text-slate-200">
-          <p>Qui gestisci tre liste: “Ripasso” (APPRESO=RIPASSO), “Risposte corrette” (solo le ultime risposte giuste) e “Apprese” (APPRESO=SI). Usa “Svuota lista” per ripulire i ripassi quando hai finito.</p>
+          <p>Qui gestisci tre liste: “Ripasso” (APPRESO=RIPASSO), “Risposte corrette” (solo le ultime risposte giuste) e “Apprese” (APPRESO=SI). Usa i pulsanti per spostare le parole tra gli stati senza perdere i dati.</p>
           <p>Puoi scaricare due formati:</p>
           <p><strong>TXT</strong>: solo elenco delle parole da rivedere/errori.</p>
           <p><strong>CSV completo</strong>: tutte le parole del database con “Errori” e “APPRESO” valorizzati (RIPASSO per le parole in “Da rivedere”, SI per le apprese, NO per il resto). Puoi ricaricarlo per ritrovare gli stati.</p>
@@ -1461,17 +1461,23 @@ export default function LessicoGame() {
 
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4 mb-6">
           <div className="flex gap-2 p-1 bg-slate-900/60 rounded-2xl border border-slate-700/50">
-              <button
-                onClick={() => setMenuTab('consultation')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'consultation' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02]' : 'text-slate-300 hover:text-orange-200'}`}
+            <button
+              onClick={() => setMenuTab('consultation')}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${menuTab === 'consultation' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02] border-white/60' : 'text-slate-300 hover:text-orange-200 border-slate-600/70'}`}
             >
               Studio
             </button>
             <button
               onClick={() => setMenuTab('games')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'games' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02]' : 'text-slate-300 hover:text-orange-200'}`}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${menuTab === 'games' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02] border-white/60' : 'text-slate-300 hover:text-orange-200 border-slate-600/70'}`}
             >
               Giochi
+            </button>
+            <button
+              onClick={() => setShowReviewPanel(true)}
+              className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border text-slate-300 hover:text-orange-200 border-slate-600/70"
+            >
+              Risultati
             </button>
           </div>
         </div>
@@ -1520,23 +1526,6 @@ export default function LessicoGame() {
               </div>
             </div>
 
-            {wordsToReview.length > 0 && (
-              <button
-                onClick={() => setShowReviewPanel(true)}
-                className="w-full bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between hover:bg-slate-700/50 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-cyan-900/40 p-2 rounded-xl">
-                    <BookOpen className="w-6 h-6 text-cyan-500" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-slate-200 font-bold">Parole da rivedere</p>
-                    <p className="text-slate-500 text-sm">{wordsToReview.length} parole salvate</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-5 h-5 text-slate-500" />
-              </button>
-            )}
           </div>
         ) : (
           <div className="grid gap-4">
@@ -1575,23 +1564,6 @@ export default function LessicoGame() {
               color="from-slate-950 to-black"
               onClick={() => selectMode('match')}
             />
-            {wordsToReview.length > 0 && (
-              <button
-                onClick={() => setShowReviewPanel(true)}
-                className="w-full bg-slate-800/50 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between hover:bg-slate-700/50 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-cyan-900/40 p-2 rounded-xl">
-                    <BookOpen className="w-6 h-6 text-cyan-500" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-slate-200 font-bold">Parole da rivedere</p>
-                    <p className="text-slate-500 text-sm">{wordsToReview.length} parole salvate</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-5 h-5 text-slate-500" />
-              </button>
-            )}
           </div>
         )}
 
@@ -1917,15 +1889,6 @@ export default function LessicoGame() {
                     </button>
                   </div>
                   <p className="text-slate-500 text-xs">Suggerimento: rinomina il file aggiungendo la data di oggi per ricordare quale versione stai usando quando lo ricarichi.</p>
-                  
-                  {isReviewList && (
-                    <button
-                      onClick={() => setWordsToReview([])}
-                      className="w-full bg-red-950/30 hover:bg-red-950/50 text-red-400 py-3 rounded-xl transition-colors border border-red-900/50 text-sm"
-                    >
-                      🗑️ Svuota lista
-                    </button>
-                  )}
 
                   <FoxInline />
                 </div>
@@ -3237,14 +3200,14 @@ export default function LessicoGame() {
        showModeSelection ? <QuestionLimitSelection /> :
        !gameMode ? <MainMenu /> :
        gameMode === 'results' ? <ResultsScreen /> :
-      gameMode === 'consultation' ? <ConsultationMode /> :
-      gameMode === 'consultationFlashcard' ? <ConsultationFlashcardMode /> :
-      gameMode === 'flashcard' ? <FlashcardMode /> :
-      (gameMode === 'quiz' || gameMode === 'speedQuiz') ? <QuizMode /> :
-      gameMode === 'phrase' ? <PhraseMode /> :
-      gameMode === 'fillBlank' ? <FillBlankMode /> :
-      gameMode === 'match' ? <MatchMode /> :
-      <MainMenu />}
+       gameMode === 'consultation' ? <ConsultationMode /> :
+       gameMode === 'consultationFlashcard' ? <ConsultationFlashcardMode /> :
+       gameMode === 'flashcard' ? <FlashcardMode /> :
+       (gameMode === 'quiz' || gameMode === 'speedQuiz') ? <QuizMode /> :
+       gameMode === 'phrase' ? <PhraseMode /> :
+       gameMode === 'fillBlank' ? <FillBlankMode /> :
+       gameMode === 'match' ? <MatchMode /> :
+       <MainMenu />}
     </>
   );
 }
