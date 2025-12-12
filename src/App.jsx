@@ -220,7 +220,7 @@ export default function LessicoGame() {
       10: total > 210,
       20: total > 110,
       33: total > 65,
-      50: total >= 10
+      50: total >= 25
     };
   };
 
@@ -544,8 +544,8 @@ export default function LessicoGame() {
     return options;
   }, []);
 
-  // Filtra le parole in base alla selezione del menu (tutte, tranche, solo “Da rivedere”, filtri appreso/recenti)
-  const getFilteredWords = useCallback(() => {
+  // Base filtrata senza tranche (serve anche per disponibilità tranche)
+  const getBaseFilteredWords = useCallback(() => {
     const reviewTerms = new Set(wordsToReview.map(w => w.term));
     let base = onlyWrongSubset ? words.filter(w => reviewTerms.has(w.term)) : words;
     if (learnedFilter === 'yes') {
@@ -555,6 +555,12 @@ export default function LessicoGame() {
     } else if (learnedFilter === 'ripasso') {
       base = base.filter(w => w.appreso === 'RIPASSO');
     }
+    return base;
+  }, [words, wordsToReview, onlyWrongSubset, learnedFilter]);
+
+  // Filtra le parole in base alla selezione del menu (tutte, tranche, solo “Ripasso”, filtri appreso/recenti)
+  const getFilteredWords = useCallback(() => {
+    let base = getBaseFilteredWords();
 
     if (subsetMode === 'chunk') {
       const numChunks = Math.max(1, Math.floor(100 / chunkPercent));
@@ -573,23 +579,19 @@ export default function LessicoGame() {
         group.sort((a, b) => a.term.localeCompare(b.term, 'it', { sensitivity: 'base' }));
         const chunkSize = Math.max(1, Math.ceil(group.length / numChunks));
         const start = chunkSize * safeChunkIndex;
-        if (start >= group.length) {
-          missingSlices = true;
-          return;
-        }
+        if (start >= group.length) return;
         const end = safeChunkIndex === numChunks - 1 ? group.length : Math.min(group.length, start + chunkSize);
         const slice = group.slice(start, end);
         result.push(...slice);
       });
 
-      // Fallback: se per qualche lettera non c'è abbastanza materiale, usa tranche sul totale
-      if (missingSlices || result.length === 0) {
+      // Fallback silenzioso: se per qualche lettera non c'è abbastanza materiale, usa tranche sul totale
+      if (result.length === 0) {
         const ordered = [...base].sort((a, b) => a.term.localeCompare(b.term, 'it', { sensitivity: 'base' }));
         const totalChunkSize = Math.max(1, Math.ceil(ordered.length / numChunks));
         const start = totalChunkSize * safeChunkIndex;
         const end = safeChunkIndex === numChunks - 1 ? ordered.length : Math.min(ordered.length, start + totalChunkSize);
         const fallbackSlice = ordered.slice(start, end);
-        triggerSelectionWarning(`Tranche per lettera troppo piccola: uso tranche sul totale (${chunkPercent}%).`);
         return fallbackSlice.length ? fallbackSlice : ordered;
       }
 
@@ -623,7 +625,7 @@ export default function LessicoGame() {
     }
 
     return finalSet;
-  }, [words, wordsToReview, subsetMode, chunkPercent, chunkIndex, onlyWrongSubset, learnedFilter, useRecent, recentLimit, recentMode, recentSince]);
+  }, [getBaseFilteredWords, subsetMode, chunkPercent, chunkIndex, useRecent, recentLimit, recentMode, recentSince]);
 
   const filteredPool = useMemo(() => getFilteredWords(), [getFilteredWords]);
 
@@ -642,7 +644,7 @@ export default function LessicoGame() {
           <h2 className="text-2xl font-bold">Istruzioni</h2>
           <button
             onClick={() => setShowInstructions(false)}
-            className="text-slate-400 hover:text-slate-200 text-xl"
+            className="text-slate-400 text-xl"
           >
             ✕
           </button>
@@ -652,7 +654,7 @@ export default function LessicoGame() {
             <p className="font-semibold">1. 🔍 Filtri</p>
             <p>Se lasci “tutte”, usi l’intero database. Per uno studio più focalizzato, puoi filtrare per:</p>
             <ul className="list-disc list-inside space-y-1 mt-1 text-slate-300">
-              <li>🔁 da rivedere (errori o parole segnate durante il gioco)</li>
+              <li>🔁 ripasso (errori o parole segnate durante il gioco)</li>
               <li>📊 stadio di apprendimento (apprese, non apprese, ripasso)</li>
               <li>📅 data di inserimento nel database</li>
             </ul>
@@ -662,7 +664,7 @@ export default function LessicoGame() {
             <div className="space-y-2 text-slate-300">
               <p><strong>a) Studio</strong>: scegli tra Vista Schede (elenco con definizioni, etimologia ed esempi), Flashcard termine (mostra il lemma) o Flashcard definizione (mostra solo la definizione, clicca per scoprire il lemma); da qui puoi aggiungere parole alla sezione Risultati.</p>
               <p><strong>b) Giochi</strong>: Quiz, Completa, Memory e Frasi usano sempre il set filtrato; ideali per metterti alla prova e ripassare, dopo lo studio.</p>
-              <p><strong>c) Risultati</strong> (ex “Parole da rivedere”): raccoglie errori e parole che hai contrassegnato. Puoi scaricare/export in CSV o testo, filtrare per “Da rivedere”, “Appresa: sì/no/ripasso” e ricaricare il CSV in sessioni future.</p>
+              <p><strong>c) Risultati</strong> (ex “Parole da rivedere”): raccoglie errori e parole che hai contrassegnato. Puoi scaricare/export in CSV o testo, filtrare per “Ripasso”, “Appresa: sì/no/ripasso” e ricaricare il CSV in sessioni future.</p>
             </div>
           </div>
         </div>
@@ -1103,7 +1105,7 @@ export default function LessicoGame() {
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
       const rows = words.map(w => {
         const appreso = reviewTerms.has(w.term) ? 'RIPASSO' : (w.learned ? 'SI' : 'NO');
-        const errorValue = reviewTerms.has(w.term) ? 'Da rivedere' : (w.commonErrors || 'NO');
+  const errorValue = reviewTerms.has(w.term) ? 'Ripasso' : (w.commonErrors || 'NO');
         return `"${normalizeDate(w.insertedAt) || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${errorValue}","${appreso}"`;
       }).join('\n');
       return header + rows;
@@ -1303,7 +1305,7 @@ export default function LessicoGame() {
         </div>
         <div className="space-y-3 text-sm leading-relaxed text-slate-200">
           <p>📊 <strong>Tranche</strong>: scegli una fetta del database per lettera (10/20/33/50%). 10% = primo 10% di ogni lettera; puoi studiare a blocchi selezionando 1ª, 2ª… fetta.</p>
-          <p>🎯 <strong>Da rivedere</strong>: attiva solo le parole che hai segnato “Da rivedere” in questa sessione.</p>
+          <p>🎯 <strong>Ripasso</strong>: attiva solo le parole che hai segnato “Ripasso” in questa sessione.</p>
           <p>📗 <strong>Stadio di apprendimento</strong>: filtra per APPRESO = SI (apprese), NO (non apprese), RIPASSO (da ripassare) o tutte.</p>
           <p>⏱️ <strong>Ultime inserite</strong>: limita alle parole più recenti (per numero) oppure per tempo: ultime 24h, 7 giorni, ultimo mese o da una data.</p>
           <p>➕ <strong>Combinazioni</strong>: prima si applicano tranche/da rivedere/stadio, poi gli altri filtri restringono ulteriormente.</p>
@@ -1412,14 +1414,14 @@ export default function LessicoGame() {
           <p className="text-slate-200 font-normal text-base">Scarica il modello CSV da personalizzare, oppure prova subito la demo.</p>
           <button
             onClick={() => downloadFile('csv_empty')}
-            className="w-full bg-orange-500 hover:bg-orange-400 text-white font-semibold px-4 py-3 rounded-xl transition-colors shadow-[0_10px_30px_-12px_rgba(249,115,22,0.7)] flex items-center justify-center gap-2"
+            className="w-full bg-cyan-900 text-slate-50 font-semibold px-4 py-3 rounded-xl shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)] border border-cyan-800/60 flex items-center justify-center gap-2"
           >
             <Download className="w-5 h-5" aria-hidden="true" />
             <span>Scarica il modello</span>
           </button>
           <button
             onClick={loadDemoWords}
-            className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold px-4 py-3 rounded-xl transition-colors shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)] flex items-center justify-center gap-2"
+            className="w-full bg-orange-500 text-white font-semibold px-4 py-3 rounded-xl transition-colors shadow-[0_6px_14px_-10px_rgba(249,115,22,0.5)] flex items-center justify-center gap-2 border border-orange-400/60"
           >
             <Sparkles className="w-5 h-5" aria-hidden="true" />
             <span>Prova demo (50 parole)</span>
@@ -1477,49 +1479,48 @@ export default function LessicoGame() {
             <div>
               <p className="text-slate-200 font-bold text-lg">Seleziona le parole con cui giocare</p>
               <p className="text-slate-400 text-sm mt-1">
-                Disponibili: {filteredPool.length}
+                Disponibili: <span className="text-cyan-300 font-semibold">{filteredPool.length}</span>
                 {learnedFilter !== 'all' && (
                   <span className="text-xs text-cyan-300 ml-2">
                     ({learnedFilter === 'yes' ? 'solo apprese' : learnedFilter === 'ripasso' ? 'solo ripasso' : 'solo da apprendere'})
                   </span>
                 )}
                 {onlyWrongSubset && (
-                  <span className="text-xs text-orange-300 ml-2">(solo “Da rivedere”)</span>
+                  <span className="text-xs text-orange-300 ml-2">(solo “Ripasso”)</span>
                 )}
               </p>
             </div>
             <button
               onClick={() => setShowSelectionPanel(true)}
-              className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-4 py-2 rounded-xl font-semibold transition shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]"
+              className="bg-cyan-900 text-slate-50 px-5 py-2 rounded-xl font-semibold border border-cyan-800/60 shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)]"
             >
-              Apri selezione
+              Scegli
             </button>
           </div>
         </div>
 
-        <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4 mb-6">
-          <div className="flex gap-2 p-1 bg-slate-900/60 rounded-2xl border border-slate-700/50">
-            <button
-              onClick={() => setMenuTab('consultation')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${menuTab === 'consultation' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02] border-white/60' : 'text-slate-300 hover:text-orange-200 border-slate-600/70'}`}
-            >
-              Studio
-            </button>
-            <button
-              onClick={() => setMenuTab('games')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${menuTab === 'games' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02] border-white/60' : 'text-slate-300 hover:text-orange-200 border-slate-600/70'}`}
-            >
-              Giochi
-            </button>
-            <button
-              onClick={() => {
-                setResultsView('menu');
-                setMenuTab('results');
-              }}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${menuTab === 'results' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02] border-white/60' : 'text-slate-300 hover:text-orange-200 border-slate-600/70'}`}
-            >
-              Risultati
-            </button>
+        <div className="mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {[
+              { key: 'consultation', label: 'Studio' },
+              { key: 'games', label: 'Giochi' },
+              { key: 'results', label: 'Risultati' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  if (tab.key === 'results') setResultsView('menu');
+                  setMenuTab(tab.key);
+                }}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+                  menuTab === tab.key
+                    ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02]'
+                    : 'text-slate-300 bg-slate-800/40 border-slate-600/70 hover:border-slate-500'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1736,12 +1737,12 @@ export default function LessicoGame() {
             onChange={(e) => setExportFormat(e.target.value)}
             className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
           >
-            <option value="text">TXT (parole da rivedere/errori)</option>
-            <option value="csv">CSV completo con errori/da rivedere</option>
+            <option value="text">TXT (parole ripasso/errori)</option>
+            <option value="csv">CSV completo con errori/ripasso</option>
           </select>
           <button
             onClick={() => downloadFile(exportFormat)}
-            className="bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
+            className="bg-cyan-900 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
           >
             Scarica
           </button>
@@ -1962,7 +1963,7 @@ export default function LessicoGame() {
             </div>
             <button
               onClick={() => setShowSelectionPanel(false)}
-              className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-3 py-1 rounded-xl font-semibold text-sm transition shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)] border border-amber-200"
+              className="bg-cyan-900 text-slate-50 px-3 py-1 rounded-xl font-semibold text-sm border border-cyan-800/60 shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)]"
             >
               Chiudi
             </button>
@@ -1970,11 +1971,10 @@ export default function LessicoGame() {
 
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex items-center gap-2 text-slate-300 text-sm">
-                <span>
+              <div className="flex items-center gap-3 text-sm">
+                <span className="text-slate-200">
                   Selezionate: <span className="font-semibold text-cyan-300">{filteredPool.length}</span>
                 </span>
-                <span className="text-slate-500">-</span>
                 <button
                   onClick={() => setShowSelectionInfo(true)}
                   className="text-slate-200 underline decoration-dotted underline-offset-4 hover:text-cyan-300 text-sm"
@@ -1984,41 +1984,42 @@ export default function LessicoGame() {
                 </button>
               </div>
             </div>
-            <div className="grid gap-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/** Calcolo disponibilità tranche */}
-                {(() => {
-                  const options = [10, 20, 33, 50];
-                  const availability = computeChunkAvailability(filteredPool);
-                  return (
-                  <select
-                    value={subsetMode === 'chunk' ? `chunk-${chunkPercent}` : 'all'}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === 'all') {
-                        setSubsetMode('all');
-                      } else {
-                        const perc = parseInt(val.split('-')[1], 10) || 10;
-                        if (!availability[perc]) {
-                          triggerSelectionWarning('Tranche disabilitata: servono più parole (almeno 1 per fetta per lettera).');
-                          setSubsetMode('all');
-                          return;
-                        }
-                        setSubsetMode('chunk');
-                        setChunkPercent(perc);
-                        setChunkIndex(0);
-                      }
-                    }}
-                  className="bg-slate-800/60 border border-slate-700 text-slate-100 rounded-xl px-3 py-2"
-                  >
-                    <option value="all">Tutte (casuale)</option>
-                    <option value="chunk-10" disabled={!availability[10]}>Tranche 10%</option>
-                    <option value="chunk-20" disabled={!availability[20]}>Tranche 20%</option>
-                    <option value="chunk-33" disabled={!availability[33]}>Tranche 33%</option>
-                    <option value="chunk-50" disabled={!availability[50]}>Tranche 50%</option>
-                  </select>
-                  );
-                })()}
+              <div className="grid gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/** Calcolo disponibilità tranche */}
+                  {(() => {
+                    const options = [10, 20, 33, 50];
+                    const availability = computeChunkAvailability(getBaseFilteredWords());
+                    const availableChunks = options.filter(p => availability[p]);
+                    const currentValid = subsetMode === 'chunk' && availability[chunkPercent];
+                    return (
+                      <select
+                        value={currentValid ? `chunk-${chunkPercent}` : 'all'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'all') {
+                            setSubsetMode('all');
+                          } else {
+                            const perc = parseInt(val.split('-')[1], 10) || 10;
+                            if (!availability[perc]) {
+                              triggerSelectionWarning('Tranche disabilitata: servono più parole (almeno 1 per fetta per lettera).');
+                              setSubsetMode('all');
+                              return;
+                            }
+                            setSubsetMode('chunk');
+                            setChunkPercent(perc);
+                            setChunkIndex(0);
+                          }
+                        }}
+                        className="bg-slate-800/60 border border-slate-700 text-slate-100 rounded-xl px-3 py-2"
+                      >
+                        <option value="all">Tutte (casuale)</option>
+                        {availableChunks.map((perc) => (
+                          <option key={perc} value={`chunk-${perc}`}>Tranche {perc}%</option>
+                        ))}
+                      </select>
+                    );
+                  })()}
 
                 {subsetMode === 'chunk' && (
                   <select
@@ -2035,10 +2036,10 @@ export default function LessicoGame() {
                 )}
               </div>
 
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Attiva solo le parole che hai segnato “Da rivedere” in questa sessione.</div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Attiva solo le parole che hai segnato “Ripasso” in questa sessione.</div>
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner mt-0">
                 <div className="flex items-center gap-2 text-sm leading-tight">
-                  <span>Da rivedere</span>
+                  <span>Ripasso</span>
                   <span className="text-xs text-slate-400 ml-1">({wordsToReview.length})</span>
                 </div>
                 <input
@@ -2242,7 +2243,7 @@ export default function LessicoGame() {
               onClick={() => { setShowAnswer(false); handleWrongAnswer(null, { autoAdvance: true }); }}
               className="bg-red-950/30 hover:bg-red-950/50 text-red-400 px-8 py-3 rounded-xl flex items-center gap-2 transition-colors border border-red-900/50"
             >
-              <X className="w-5 h-5" /> Da rivedere
+              <X className="w-5 h-5" /> Ripasso
             </button>
             <button
               onClick={() => { setShowAnswer(false); handleCorrectAnswer(); }}
@@ -2874,7 +2875,7 @@ export default function LessicoGame() {
             }}
               className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'border-cyan-800/50 bg-cyan-900/40 text-cyan-200 hover:bg-cyan-900/60'}`}
           >
-            + Da rivedere
+            + Ripasso
           </button>
             );
           })()}
@@ -2919,7 +2920,7 @@ export default function LessicoGame() {
                     }}
                     className="text-cyan-300 text-xs underline underline-offset-2 hover:text-cyan-200"
                   >
-                    Da rivedere: {wordsToReview.length}
+                    Ripasso: {wordsToReview.length}
                   </button>
                 )}
               </div>
@@ -3081,7 +3082,7 @@ export default function LessicoGame() {
                     }}
                     className="text-cyan-300 text-xs underline underline-offset-2 hover:text-cyan-200"
                   >
-                    Da rivedere: {wordsToReview.length}
+                    Ripasso: {wordsToReview.length}
                   </button>
                 )}
               </div>
@@ -3164,7 +3165,7 @@ export default function LessicoGame() {
                                 }}
                                 className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'bg-cyan-900/40 text-cyan-200 border-cyan-800/50 hover:bg-cyan-900/60'}`}
                               >
-                                + Da rivedere
+                                + Ripasso
                               </button>
                             );
                           })()}
