@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
-import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle, Download } from 'lucide-react';
+import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronUp, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle, Download } from 'lucide-react';
 import LogoVolpinaChiusi from '../volpina-occhi-chiusi.png';
 import LogoVolpinaOcchiAperti from '../volpina-occhi-aperti.png';
 import LogoVolpinaTestaAlzata from '../volpina-testa-alzata.png';
@@ -1259,6 +1259,25 @@ export default function LessicoGame() {
         </ul>
       </div>
     );
+  };
+
+  const ScrollToTopButton = () => (
+    <button
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className="fixed bottom-4 right-4 z-40 bg-cyan-900/80 hover:bg-cyan-800 text-slate-100 border border-cyan-800/60 rounded-full shadow-lg p-3 transition-colors"
+      aria-label="Torna su"
+    >
+      <ChevronUp className="w-5 h-5" />
+    </button>
+  );
+
+  const resetConsultationState = () => {
+    setConsultLetter('all');
+    setConsultOrder('random');
+    setConsultOpenLetter(null);
+    setConsultFlashOpenLetter(null);
+    setConsultFlipped({});
   };
 
   // Componente per mostrare risposta corretta e pulsante continua
@@ -3020,7 +3039,7 @@ export default function LessicoGame() {
                   <option value="alpha">Alfabetico</option>
                 </select>
                 <button
-                  onClick={() => { setConsultLetter('all'); setConsultOrder('random'); }}
+                  onClick={resetConsultationState}
                   className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
                 >
                   Reset
@@ -3058,6 +3077,7 @@ export default function LessicoGame() {
             <FoxInline />
           </div>
         </div>
+        <ScrollToTopButton />
       </div>
     );
   };
@@ -3128,9 +3148,9 @@ export default function LessicoGame() {
       });
     }, [showDefinitionFirst, pool]);
 
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
-        <div className="max-w-5xl mx-auto pt-6">
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
+          <div className="max-w-5xl mx-auto pt-6">
             <div className="flex flex-col gap-4 mb-6">
             <div className="flex items-center justify-between">
               <button
@@ -3182,7 +3202,7 @@ export default function LessicoGame() {
                   <option value="alpha">Alfabetico</option>
                 </select>
                 <button
-                  onClick={() => { setConsultLetter('all'); setConsultOrder('random'); }}
+                  onClick={resetConsultationState}
                   className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
                 >
                   Reset
@@ -3199,6 +3219,7 @@ export default function LessicoGame() {
             <div className="grid gap-4 md:grid-cols-2">
               {sections.flatMap(section => section.words).map((word) => {
                 const isFlipped = consultFlipped[word.term];
+                const hasExamples = getExamples(word).length > 0;
                 return (
                   <div
                     key={word.term}
@@ -3246,6 +3267,7 @@ export default function LessicoGame() {
                             );
                           })()}
                         </div>
+                        {showDefinitionFirst && hasExamples && <ExamplesBlock word={word} className="mt-2" />}
                         <p className="text-slate-200 leading-relaxed">{word.definition}</p>
                         {word.etymology && (
                           <p className="text-slate-400 text-sm italic">{word.etymology}</p>
@@ -3257,7 +3279,7 @@ export default function LessicoGame() {
                             {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {word.commonErrors}</p>}
                           </div>
                         )}
-                        {word.examples && word.examples.length > 0 && <ExamplesBlock word={word} />}
+                        {!showDefinitionFirst && hasExamples && <ExamplesBlock word={word} />}
                         <p className="text-slate-500 text-xs">Clicca per richiudere</p>
                       </div>
                     )}
@@ -3268,6 +3290,7 @@ export default function LessicoGame() {
           )}
           <FoxInline />
         </div>
+        <ScrollToTopButton />
       </div>
     );
   };
