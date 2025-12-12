@@ -1051,15 +1051,18 @@ export default function LessicoGame() {
 
   // Scarica come file
   const downloadFile = (format) => {
-    // Se stai usando il demo e non hai parole filtrate, blocca download
-    if (demoMode && filteredPool.length === 0) {
-      triggerSelectionWarning('Non puoi scaricare il file demo: nessuna parola disponibile.');
-      return;
-    }
-    // Nessuna parola disponibile
-    if (words.length === 0 && wordsToReview.length === 0) {
-      triggerSelectionWarning('Nessuna parola da scaricare.');
-      return;
+    const requiresData = format !== 'csv_empty';
+    if (requiresData) {
+      // Se stai usando il demo e non hai parole filtrate, blocca download
+      if (demoMode && filteredPool.length === 0) {
+        triggerSelectionWarning('Non puoi scaricare il file demo: nessuna parola disponibile.');
+        return;
+      }
+      // Nessuna parola disponibile
+      if (words.length === 0 && wordsToReview.length === 0) {
+        triggerSelectionWarning('Nessuna parola da scaricare.');
+        return;
+      }
     }
     const textRaw = formatWordsForExport(format);
     const text = typeof textRaw === 'string' ? textRaw : '';
@@ -1299,9 +1302,9 @@ export default function LessicoGame() {
             onClick={() => downloadFile('csv_empty')}
             className="w-full mt-3 bg-slate-800/60 hover:bg-slate-800 text-slate-100 px-4 py-3 rounded-xl border border-slate-700/60 transition-colors"
           >
-            Scarica l'elenco vuoto
+            Scarica il modello
           </button>
-          <p className="text-slate-500 text-xs mt-2">Scarica il modello vuoto e compila con le tue parole.</p>
+          <p className="text-slate-500 text-xs mt-2">Scarica il modello con intestazione, valori già impostati ed esempi da cui partire.</p>
         </div>
       </div>
     </div>
@@ -2962,12 +2965,15 @@ export default function LessicoGame() {
                 ✕
               </button>
             </div>
-            <div className="space-y-2 text-sm leading-relaxed text-slate-200">
-              <p>Formato richiesto: 12 colonne, separatore virgola, UTF-8, prima riga di intestazione.</p>
-              <p>Ordine colonne: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</p>
-              <p>Da Google Sheet/Excel/LibreOffice/Numbers: esporta come CSV mantenendo l’intestazione. Evita separatore “;” o tabulazioni.</p>
-              <p>Data nel formato GG-MM-AA (es. 14-10-25) o lascia vuoto.</p>
-              <p>APPRESO: SI/NO. Errori: descrizione o “NO”.</p>
+            <div className="space-y-3 text-sm leading-relaxed text-slate-200">
+              <ul className="list-disc list-inside space-y-2 text-slate-200">
+                <li>⬇️ Scarica il modello CSV già pronto: ha intestazione, valori preimpostati e una riga di esempio.</li>
+                <li>✍️ Mantieni l’ordine delle 12 colonne: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</li>
+                <li>✅ Non è obbligatorio compilare tutto: indispensabili solo “Termine” e “Definizione”; le altre colonne possono restare vuote.</li>
+                <li>💾 Esporta/salva come CSV UTF-8 con separatore virgola (no “;” o tab).</li>
+                <li>📅 Formati: Data in GG-MM-AA o vuota; APPRESO = SI/NO; Errori = descrizione o “NO”.</li>
+              </ul>
+              <p className="text-slate-400">Suggerimento: da Google Sheet/Excel/LibreOffice/Numbers scegli “Esporta/Salva come CSV” e non modificare l’intestazione.</p>
             </div>
           </div>
         </div>
