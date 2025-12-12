@@ -1516,7 +1516,7 @@ export default function LessicoGame() {
                 setResultsView('menu');
                 setMenuTab('results');
               }}
-              className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border text-slate-300 hover:text-orange-200 border-slate-600/70"
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${menuTab === 'results' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02] border-white/60' : 'text-slate-300 hover:text-orange-200 border-slate-600/70'}`}
             >
               Risultati
             </button>
@@ -1962,9 +1962,9 @@ export default function LessicoGame() {
             </div>
             <button
               onClick={() => setShowSelectionPanel(false)}
-              className="text-slate-400 hover:text-slate-200 text-xl"
+              className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-3 py-1 rounded-xl font-semibold text-sm transition shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)] border border-amber-200"
             >
-              ✕
+              Chiudi
             </button>
           </div>
 
@@ -2116,14 +2116,6 @@ export default function LessicoGame() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setShowSelectionPanel(false)}
-                className="bg-orange-300 text-slate-900 px-4 py-2 rounded-xl font-semibold hover:opacity-85 transition border border-orange-400"
-              >
-                Chiudi
-              </button>
-            </div>
           </div>
         </div>
       </div>
