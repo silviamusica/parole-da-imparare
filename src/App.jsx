@@ -1567,7 +1567,7 @@ export default function LessicoGame() {
           </div>
         ) : menuTab === 'games' ? (
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
-            <p className="text-slate-400 text-sm mb-3">Scegli il gioco che preferisci</p>
+            <p className="text-slate-400 text-sm mb-3">Scegli con quale gioco imparare</p>
             <div className="grid gap-2">
               {[
                 { key: 'flashcard', label: 'Flashcard', desc: 'Studia le parole una alla volta', icon: <Brain className="w-4 h-4" /> },
@@ -1757,7 +1757,7 @@ export default function LessicoGame() {
       content = (
         <>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="text-slate-400 text-sm">Scegli la vista dei risultati</p>
+            <p className="text-slate-400 text-sm">Controlla i progressi e programma il lavoro futuro</p>
             <button
               type="button"
               onClick={() => setShowReviewHelp(true)}
