@@ -955,9 +955,13 @@ export default function LessicoGame() {
       const field = requiresField(quizQuestionType);
       if (field) {
         const filtered = basePool.filter(w => cleanOptionalField(w[field]));
-        if (filtered.length >= 4) {
-          quizPool = filtered;
+        if (filtered.length < 4) {
+          triggerSelectionWarning('Non ci sono abbastanza dati per questa modalità (serve almeno 4 parole con il campo compilato).');
+          setShowModeSelection(false);
+          setPendingMode(null);
+          return;
         }
+        quizPool = filtered;
       }
     }
 
@@ -2646,14 +2650,16 @@ export default function LessicoGame() {
   // Quiz Mode
   const QuizMode = () => {
     const word = shuffledWords[currentIndex];
+    const safeSynonyms = cleanOptionalField(word.synonyms);
+    const safeAntonyms = cleanOptionalField(word.antonyms);
     const getPrompt = () => {
       switch (quizQuestionType) {
         case 'term':
           return { label: 'Qual è la definizione di...', text: word.term };
         case 'synonyms':
-          return { label: 'Quale parola corrisponde a questi sinonimi?', text: word.synonyms || '—' };
+          return { label: 'Quale parola corrisponde a questi sinonimi?', text: safeSynonyms || '—' };
         case 'antonyms':
-          return { label: 'Quale parola corrisponde a questi contrari?', text: word.antonyms || '—' };
+          return { label: 'Quale parola corrisponde a questi contrari?', text: safeAntonyms || '—' };
         default:
           return { label: 'Qual è la parola per...', text: word.definition };
       }
