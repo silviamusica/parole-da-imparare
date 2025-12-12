@@ -98,6 +98,7 @@ const parseCSV = (text) => {
     const frequencyUsage = getField(row, 8, "frequenza d'uso", 'frequenza uso');
     const technical = getField(row, 9, 'linguaggio tecnico');
     const insertedAtRaw = getField(row, 0, 'data di inserimento', 'data_inserimento', 'data');
+    const favoriteRaw = getField(row, 12, 'preferito', 'favorite');
     const insertedAt = normalizeDate(insertedAtRaw);
     const errorRaw = getField(row, 10, 'errori', 'errorflag', 'error');
     const normalizedErrorFlag = normalizeYesNo(errorRaw);
@@ -125,7 +126,8 @@ const parseCSV = (text) => {
         errorFlag,
         mastery: 0,
         appreso,
-        lastSeen: null
+        lastSeen: null,
+        favorite: normalizeYesNo(favoriteRaw) === 'SI'
       });
     }
   }
@@ -215,6 +217,15 @@ export default function LessicoGame() {
   const [showUploadInfo, setShowUploadInfo] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const perfectCelebratedRef = useRef(false);
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const raw = localStorage.getItem('lexicon-favorites');
+      if (!raw) return new Set();
+      return new Set(JSON.parse(raw));
+    } catch {
+      return new Set();
+    }
+  });
 
   const computeChunkAvailability = (pool) => {
     const total = pool.length;
@@ -229,6 +240,23 @@ export default function LessicoGame() {
   const triggerAddedFeedback = (type = 'added') => {
     setAddedFeedback(type);
     setTimeout(() => setAddedFeedback(null), 900);
+  };
+
+  const toggleFavorite = (term) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(term)) {
+        next.delete(term);
+      } else {
+        next.add(term);
+      }
+      try {
+        localStorage.setItem('lexicon-favorites', JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+    setWords(prev => prev.map(w => w.term === term ? { ...w, favorite: !w.favorite } : w));
+    setShuffledWords(prev => prev.map(w => w.term === term ? { ...w, favorite: !w.favorite } : w));
   };
 
   // Effetti sonori semplici
@@ -1284,7 +1312,8 @@ export default function LessicoGame() {
   // Componente per mostrare risposta corretta e pulsante continua
   const AnswerDetailCard = ({ word, isCorrect, onContinue, continueHint = 'o premi Invio' }) => {
     if (!word) return null;
-    const showCommonErrors = word.commonErrors && `${word.commonErrors}`.trim().toLowerCase() !== 'nessuno';
+    const commonErrorsClean = `${word.commonErrors || ''}`.trim();
+    const showCommonErrors = commonErrorsClean && !['no', 'n/a', 'nessuno'].includes(commonErrorsClean.toLowerCase());
     return (
       <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-left space-y-3">
         <div className={`text-lg font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
@@ -1298,7 +1327,9 @@ export default function LessicoGame() {
           {word.accent && (
             <p className="text-slate-300"><span className="font-semibold">Accento:</span> <span className="italic text-slate-100">{word.accent}</span></p>
           )}
-          <p className="text-lg font-semibold text-slate-50">{word.definition}</p>
+          {word.definition && (
+            <p className="text-lg font-semibold text-slate-50">{word.definition}</p>
+          )}
           {word.etymology && (
             <p className="italic text-slate-300">{word.etymology}</p>
           )}
@@ -1962,6 +1993,16 @@ export default function LessicoGame() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-bold text-slate-100">{word.term}</h3>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavorite(word.term);
+                            }}
+                            className="text-slate-400 hover:text-amber-300 transition-colors"
+                            aria-label="Preferito"
+                          >
+                            <Heart className={`w-4 h-4 ${favorites.has(word.term) || word.favorite ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
+                          </button>
                         </div>
                         {word.accent && (
                           <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
@@ -2928,7 +2969,9 @@ export default function LessicoGame() {
   // Consultation Mode
   const ConsultationMode = () => {
     let pool = activePool.length ? activePool : getFilteredWords();
-    if (consultLetter !== 'all') {
+    if (consultLetter === 'fav') {
+      pool = pool.filter(w => favorites.has(w.term) || w.favorite);
+    } else if (consultLetter !== 'all') {
       pool = pool.filter(w => (w.term?.[0] || '').toLowerCase() === consultLetter.toLowerCase());
     }
     const { sections, total } = useMemo(() => {
@@ -2985,36 +3028,48 @@ export default function LessicoGame() {
         key={word.term}
         className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:border-cyan-800/60 transition-colors"
       >
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div>
-            <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
-            {word.accent && (
-              <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
-            )}
-          </div>
-          {(() => {
-            const inReview = wordsToReview.some(w => w.term === word.term);
-            return (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setWordsToReview(prev => {
-                if (prev.some(w => w.term === word.term)) {
-                  triggerAddedFeedback('duplicate');
-                  return prev;
-                }
-                triggerAddedFeedback('added');
-                return [...prev, { ...word, errorFlag: 'SI', source: 'manual', learned: false }];
-              });
-              setConsultOpenLetter(letter);
-            }}
-              className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'border-cyan-800/50 bg-cyan-900/40 text-cyan-200 hover:bg-cyan-900/60'}`}
-          >
-            + Ripasso
-          </button>
-            );
-          })()}
-        </div>
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
+                  {word.accent && (
+                    <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(word.term);
+                    }}
+                    className="text-slate-400 hover:text-amber-300 transition-colors"
+                    aria-label="Preferito"
+                  >
+                    <Heart className={`w-5 h-5 ${favorites.has(word.term) ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
+                  </button>
+                  {(() => {
+                    const inReview = wordsToReview.some(w => w.term === word.term);
+                    return (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setWordsToReview(prev => {
+                            if (prev.some(w => w.term === word.term)) {
+                              triggerAddedFeedback('duplicate');
+                              return prev;
+                            }
+                            triggerAddedFeedback('added');
+                            return [...prev, { ...word, errorFlag: 'SI', source: 'manual', learned: false }];
+                          });
+                          setConsultOpenLetter(letter);
+                        }}
+                        className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'border-cyan-800/50 bg-cyan-900/40 text-cyan-200 hover:bg-cyan-900/60'}`}
+                      >
+                        + Ripasso
+                      </button>
+                    );
+                  })()}
+                </div>
+              </div>
         <p className="text-slate-200 mb-2 leading-relaxed">{word.definition}</p>
         {word.etymology && (
           <p className="text-slate-400 text-sm italic mb-2">{word.etymology}</p>
@@ -3078,6 +3133,12 @@ export default function LessicoGame() {
                   <option value="random">Casuale</option>
                   <option value="alpha">Alfabetico</option>
                 </select>
+                <button
+                  onClick={() => setConsultLetter('fav')}
+                  className={`bg-slate-900/70 border rounded-xl px-3 py-2 text-sm hover:bg-slate-800 ${consultLetter === 'fav' ? 'border-amber-300 text-amber-200' : 'border-slate-700 text-slate-100'}`}
+                >
+                  Preferiti
+                </button>
                 <button
                   onClick={resetConsultationState}
                   className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
