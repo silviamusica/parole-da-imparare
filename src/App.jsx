@@ -624,34 +624,20 @@ export default function LessicoGame() {
         <div className="space-y-4 text-sm text-slate-200 leading-relaxed">
           <div>
             <p className="font-semibold">1. 🔍 Filtri</p>
-            <p>Se lasci “tutte”, usi l’intero database. Puoi filtrare per:</p>
+            <p>Se lasci “tutte”, usi l’intero database. Per uno studio più focalizzato, puoi filtrare per:</p>
             <ul className="list-disc list-inside space-y-1 mt-1 text-slate-300">
-              <li>📅 data di inserimento nel database</li>
-              <li>🧩 tranche</li>
-              <li>✅ apprese / ❌ non apprese</li>
               <li>🔁 da rivedere (errori o parole segnate durante il gioco)</li>
+              <li>📊 stadio di apprendimento (apprese, non apprese, ripasso)</li>
+              <li>📅 data di inserimento nel database</li>
             </ul>
           </div>
-          <div className="border-t border-slate-700 pt-4 space-y-1">
-            <p className="font-semibold">2. 📚 Tab Studio</p>
-            <p>Puoi studiare in due modi:</p>
-            <p>1️⃣ <strong>Vista Schede</strong>: elenco con definizione, etimologia ed esempi. Da qui puoi aggiungere parole alla sezione “Parole da rivedere”.</p>
-            <p>2️⃣ <strong>Vista Flashcard</strong>: vedi la parola, clicchi per girarla e leggere i dettagli; poi puoi decidere se aggiungerla a “Parole da rivedere”.</p>
-          </div>
-          <div className="border-t border-slate-700 pt-4 space-y-1">
-            <p className="font-semibold">3. 🔁 Parole da rivedere</p>
-            <p>Raccoglie gli errori commessi nei giochi o le parole selezionate nello studio.</p>
-            <p>Funzioni:</p>
-            <ul className="list-disc list-inside space-y-1 text-slate-300">
-              <li>💾 scarica l’elenco in CSV o testo (il CSV compila “appreso” con “NO” per le parole sbagliate)</li>
-              <li>📂 ricarica quel CSV in una nuova sessione per ritrovare gli errori segnati</li>
-              <li>🎯 filtra per “Da rivedere” o per stato “Appreso” (SÌ/NO) per un ripasso mirato</li>
-            </ul>
-            <p className="mt-1">Quando una parola è acquisita, rimuovila da “Parole da rivedere”.</p>
-          </div>
-          <div className="border-t border-slate-700 pt-4 space-y-1">
-            <p className="font-semibold">4. 🎮 Tab Giochi</p>
-            <p>Quiz, Speed, Completa, Memory usano sempre il set filtrato all’inizio. Ideali per ripassare dopo lo studio.</p>
+          <div className="border-t border-slate-700 pt-4 space-y-2">
+            <p className="font-semibold">2. 📑 Le tre tab</p>
+            <div className="space-y-2 text-slate-300">
+              <p><strong>a) Studio</strong>: scegli tra Vista Schede (elenco con definizioni, etimologia ed esempi) o Vista Flashcard (mostra solo la parola, clicca per vedere definizione/dettagli); da qui puoi aggiungere parole alla sezione Risultati.</p>
+              <p><strong>b) Giochi</strong>: Quiz, Completa, Memory e Frasi usano sempre il set filtrato; ideali per metterti alla prova e ripassare, dopo lo studio.</p>
+              <p><strong>c) Risultati</strong> (ex “Parole da rivedere”): raccoglie errori e parole che hai contrassegnato. Puoi scaricare/export in CSV o testo, filtrare per “Da rivedere”, “Appresa: sì/no/ripasso” e ricaricare il CSV in sessioni future.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1292,7 +1278,7 @@ export default function LessicoGame() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
-          <h2 className="text-2xl font-bold">Sezione “Parole da rivedere”</h2>
+          <h2 className="text-2xl font-bold">Sezione “Risultati”</h2>
           <button
             onClick={() => setShowReviewHelp(false)}
             className="text-slate-400 hover:text-slate-200 text-xl"
@@ -1302,9 +1288,17 @@ export default function LessicoGame() {
         </div>
         <div className="space-y-3 text-sm leading-relaxed text-slate-200">
           <p>Qui gestisci tre liste: “Ripasso” (APPRESO=RIPASSO), “Risposte corrette” (solo le ultime risposte giuste) e “Apprese” (APPRESO=SI). Usa i pulsanti per spostare le parole tra gli stati senza perdere i dati.</p>
+          <p className="space-y-1">
+            <div>Contrassegna come:</div>
+            <ul className="list-disc list-inside space-y-1 text-slate-300">
+              <li><strong>Apprese</strong>: parole che hai memorizzato.</li>
+              <li><strong>Non apprese</strong>: parole che sbagli ancora.</li>
+              <li><strong>Ripasso</strong>: parole da inserire nei prossimi ripassi.</li>
+            </ul>
+          </p>
           <p>Puoi scaricare due formati:</p>
           <p><strong>TXT</strong>: solo elenco delle parole da rivedere/errori.</p>
-          <p><strong>CSV completo</strong>: tutte le parole del database con “Errori” e “APPRESO” valorizzati (RIPASSO per le parole in “Da rivedere”, SI per le apprese, NO per il resto). Puoi ricaricarlo per ritrovare gli stati.</p>
+          <p><strong>CSV completo</strong>: tutte le parole del database con “appreso” valorizzato (RIPASSO per le parole da rivedere, SI per le apprese, NO per tutte le altre). Puoi utilizzarlo nella prossima sessione per filtrare solo ciò che vuoi imparare.</p>
         </div>
       </div>
     </div>
@@ -1483,107 +1477,72 @@ export default function LessicoGame() {
         </div>
 
         {menuTab === 'consultation' ? (
-          <div className="grid gap-4">
-            <div className="bg-slate-800/50 border border-slate-700/50 p-5 rounded-2xl flex flex-col gap-3">
-              <p className="text-slate-400 text-sm">
-                Per studiare una tranche specifica, seleziona i filtri/percentuali in alto; se lasci "tutte", userai l'intero database.
-              </p>
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <BookOpen className="w-6 h-6 text-cyan-500" />
-                  <div>
-                    <p className="text-slate-200 font-bold text-lg">Studio (elenco)</p>
-                    <p className="text-slate-400 text-sm">Visualizza le parole filtrate in elenco</p>
-                  </div>
-                </div>
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
+            <p className="text-slate-400 text-sm mb-3">Scegli la vista di studio</p>
+            <div className="grid gap-2">
+              {[
+                {
+                  key: 'consultation',
+                  label: 'Studio (elenco)',
+                  description: 'Visualizza le parole filtrate in elenco con definizioni ed esempi.',
+                  icon: <BookOpen className="w-4 h-4" />
+                },
+                {
+                  key: 'consultationFlashcard',
+                  label: 'Studio (flashcard)',
+                  description: 'Gira le carte per leggere dettagli ed esempi.',
+                  icon: <Brain className="w-4 h-4" />
+                }
+              ].map((mode) => (
                 <button
-                  onClick={() => selectMode('consultation')}
-                  className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-4 py-2 rounded-xl text-sm font-semibold shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)]"
+                  key={mode.key}
+                  onClick={() => selectMode(mode.key)}
+                  className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 border text-slate-200 hover:text-orange-200 hover:border-amber-300/60 border-slate-600/70 bg-slate-800/80 hover:bg-slate-700/70"
                 >
-                  Apri
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-slate-800/50 border border-slate-700/50 p-5 rounded-2xl flex flex-col gap-3">
-              <p className="text-slate-400 text-sm">
-                Preferisci le flashcard? Usa la stessa selezione di parole in modalità carte.
-              </p>
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <Brain className="w-6 h-6 text-cyan-500" />
-                  <div>
-                    <p className="text-slate-200 font-bold text-lg">Studio (flashcard)</p>
-                    <p className="text-slate-400 text-sm">Gira le carte per vedere dettagli ed esempi</p>
+                  <div className="flex items-center gap-3">
+                    <span className="bg-slate-700/80 px-2 py-1 rounded-lg text-xs text-slate-200">{mode.icon}</span>
+                    <div className="flex flex-col">
+                      <span>{mode.label}</span>
+                      <span className="text-xs font-normal text-slate-400">{mode.description}</span>
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={() => selectMode('consultationFlashcard')}
-                  className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-4 py-2 rounded-xl text-sm font-semibold shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)]"
-                >
-                  Apri
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
                 </button>
-              </div>
+              ))}
             </div>
-
           </div>
         ) : (
-          <div className="grid gap-4">
-            <GameModeCard
-              icon={<Brain className="w-8 h-8" />}
-              title="Flashcard"
-              description="Studia le parole una alla volta"
-              color="from-slate-600 to-slate-800"
-              onClick={() => selectMode('flashcard')}
-            />
-            <GameModeCard
-              icon={<Target className="w-8 h-8" />}
-              title="Quiz"
-              description="Scegli la definizione corretta"
-              color="from-cyan-900 to-cyan-950"
-              onClick={() => selectMode('quiz')}
-            />
-            <GameModeCard
-              icon={<Sparkles className="w-8 h-8" />}
-              title="Completa"
-              description="Scrivi la parola dalla definizione"
-              color="from-blue-950 to-slate-950"
-              onClick={() => selectMode('fillBlank')}
-            />
-            <GameModeCard
-              icon={<HelpCircle className="w-8 h-8" />}
-              title="Frasi"
-              description="Indovina la parola mancante dal caso d'uso"
-              color="from-indigo-950 to-slate-950"
-              onClick={() => selectMode('phrase')}
-            />
-            <GameModeCard
-              icon={<Shuffle className="w-8 h-8" />}
-              title="Memory Match"
-              description="Abbina parole e definizioni"
-              color="from-slate-950 to-black"
-              onClick={() => selectMode('match')}
-            />
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
+            <p className="text-slate-400 text-sm mb-3">Scegli il gioco che preferisci</p>
+            <div className="grid gap-2">
+              {[
+                { key: 'flashcard', label: 'Flashcard', desc: 'Studia le parole una alla volta', icon: <Brain className="w-4 h-4" /> },
+                { key: 'quiz', label: 'Quiz', desc: 'Scegli la definizione corretta', icon: <Target className="w-4 h-4" /> },
+                { key: 'fillBlank', label: 'Completa', desc: 'Scrivi la parola dalla definizione', icon: <Sparkles className="w-4 h-4" /> },
+                { key: 'phrase', label: 'Frasi', desc: 'Indovina la parola mancante dal caso d\'uso', icon: <HelpCircle className="w-4 h-4" /> },
+                { key: 'match', label: 'Memory', desc: 'Abbina parole e definizioni', icon: <Shuffle className="w-4 h-4" /> }
+              ].map((mode) => (
+                <button
+                  key={mode.key}
+                  onClick={() => selectMode(mode.key)}
+                  className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 border text-slate-200 hover:text-orange-200 hover:border-amber-300/60 border-slate-600/70 bg-slate-800/80 hover:bg-slate-700/70"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="bg-slate-700/80 px-2 py-1 rounded-lg text-xs text-slate-200">{mode.icon}</span>
+                    <div className="flex flex-col">
+                      <span>{mode.label}</span>
+                      <span className="text-xs font-normal text-slate-400">{mode.desc}</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
       </div>
     </div>
-  );
-
-  // Card modalità gioco
-  const GameModeCard = ({ icon, title, description, color, onClick }) => (
-    <button
-      onClick={onClick}
-      className={`bg-gradient-to-r ${color} p-6 rounded-2xl text-left flex items-center gap-4 transform transition-all hover:scale-105 hover:shadow-lg border border-slate-700/50 active:scale-95 w-full`}
-    >
-      <div className="bg-slate-200/10 p-3 rounded-xl">{icon}</div>
-      <div className="flex-1">
-        <h3 className="text-xl font-bold text-slate-100">{title}</h3>
-        <p className="text-slate-400 text-sm">{description}</p>
-      </div>
-      <ArrowRight className="w-6 h-6 text-slate-500" />
-    </button>
   );
 
   // Schermata selezione numero domande
@@ -1659,7 +1618,7 @@ export default function LessicoGame() {
     );
   };
 
-  // Pannello parole da rivedere
+  // Pannello Risultati
   const ReviewPanel = () => {
     const isReviewList = reviewView === 'review';
     const isCorrectList = reviewView === 'played';
@@ -1717,23 +1676,23 @@ export default function LessicoGame() {
           >
             <div className="p-5 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 gap-3">
               <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold text-slate-100">📚 Parole da rivedere</h2>
+                <h2 className="text-2xl font-bold text-slate-100">📊 Risultati</h2>
                 <button
                   type="button"
                   onClick={() => setShowReviewHelp(true)}
                   className="w-5 h-5 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
-                  aria-label="Info Parole da rivedere"
+                  aria-label="Info Risultati"
                 >
                   i
                 </button>
               </div>
               <p className="text-slate-400 text-sm">{activeList.length} parole</p>
-              <button
-                onClick={() => setShowReviewPanel(false)}
-                className="text-slate-500 hover:text-slate-300 text-2xl"
-              >
-                ✕
-              </button>
+                <button
+                  onClick={() => setShowReviewPanel(false)}
+                  className="text-slate-500 hover:text-slate-300 text-2xl"
+                >
+                  ✕
+                </button>
             </div>
 
             <div className="px-4 pt-4">
