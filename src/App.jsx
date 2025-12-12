@@ -822,6 +822,8 @@ export default function LessicoGame() {
     setIsCorrect(null);
     setGameStats({ correct: 0, wrong: 0, total: 0 });
     setShowHint(false);
+    setHintLevel(0);
+    setFillBlankInput('');
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     
