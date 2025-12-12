@@ -173,6 +173,7 @@ export default function LessicoGame() {
   const [activePool, setActivePool] = useState([]);
   const [learnedFilter, setLearnedFilter] = useState('all'); // all | yes | no
   const [menuTab, setMenuTab] = useState('consultation'); // consultation (Studio) | games
+  const [resultsView, setResultsView] = useState('menu'); // menu | review | played | learned
   const [consultOrder, setConsultOrder] = useState('alpha'); // random | alpha
   const [consultLetter, setConsultLetter] = useState('all');
   const [studyView, setStudyView] = useState('list'); // list | flashcard
@@ -187,7 +188,6 @@ export default function LessicoGame() {
   const [playedWords, setPlayedWords] = useState([]);
   const reviewListRef = useRef(null);
   const reviewScrollPos = useRef(0);
-  const [showReviewPanel, setShowReviewPanel] = useState(false);
   const selectionTimeoutRef = useRef(null);
   const triggerSelectionWarning = (message, duration = 5000) => {
     if (selectionTimeoutRef.current) clearTimeout(selectionTimeoutRef.current);
@@ -198,6 +198,8 @@ export default function LessicoGame() {
   const consultShuffleRef = useRef({});
   const [foxAnim, setFoxAnim] = useState(false);
   const foxAnimTimeout = useRef(null);
+  const foxBreathTimers = useRef([]);
+  const foxBreathInterval = useRef(null);
   const [foxVariant, setFoxVariant] = useState('default'); // default | happy | alt | feedback-ok | feedback-wrong
   const [foxCycleStep, setFoxCycleStep] = useState(0); // 0 -> alt, 1 -> happy
   const [foxAnimSize, setFoxAnimSize] = useState('big'); // small | big
@@ -256,6 +258,30 @@ export default function LessicoGame() {
       setFoxAnim(false);
       setFoxVariant('default');
     }, 2000);
+  };
+
+  const clearFoxBreathing = () => {
+    foxBreathTimers.current.forEach((t) => clearTimeout(t));
+    foxBreathTimers.current = [];
+    if (foxBreathInterval.current) {
+      clearInterval(foxBreathInterval.current);
+      foxBreathInterval.current = null;
+    }
+  };
+
+  const runFoxBreathing = () => {
+    foxBreathTimers.current.forEach((t) => clearTimeout(t));
+    foxBreathTimers.current = [];
+    const pulses = [0, 2200, 4400]; // 3 respiri lenti
+    pulses.forEach((delay) => {
+      const on = setTimeout(() => {
+        setFoxAnimSize('small');
+        setFoxAnim(true);
+        const off = setTimeout(() => setFoxAnim(false), 1000); // 1s per tornare
+        foxBreathTimers.current.push(off);
+      }, delay);
+      foxBreathTimers.current.push(on);
+    });
   };
 
   // Gestione upload file
@@ -634,7 +660,7 @@ export default function LessicoGame() {
           <div className="border-t border-slate-700 pt-4 space-y-2">
             <p className="font-semibold">2. 📑 Le tre tab</p>
             <div className="space-y-2 text-slate-300">
-              <p><strong>a) Studio</strong>: scegli tra Vista Schede (elenco con definizioni, etimologia ed esempi) o Vista Flashcard (mostra solo la parola, clicca per vedere definizione/dettagli); da qui puoi aggiungere parole alla sezione Risultati.</p>
+              <p><strong>a) Studio</strong>: scegli tra Vista Schede (elenco con definizioni, etimologia ed esempi), Flashcard termine (mostra il lemma) o Flashcard definizione (mostra solo la definizione, clicca per scoprire il lemma); da qui puoi aggiungere parole alla sezione Risultati.</p>
               <p><strong>b) Giochi</strong>: Quiz, Completa, Memory e Frasi usano sempre il set filtrato; ideali per metterti alla prova e ripassare, dopo lo studio.</p>
               <p><strong>c) Risultati</strong> (ex “Parole da rivedere”): raccoglie errori e parole che hai contrassegnato. Puoi scaricare/export in CSV o testo, filtrare per “Da rivedere”, “Appresa: sì/no/ripasso” e ricaricare il CSV in sessioni future.</p>
             </div>
@@ -652,7 +678,11 @@ export default function LessicoGame() {
       return;
     }
     if (mode === 'consultationFlashcard') {
-      startConsultationFlashcard();
+      startConsultationFlashcard(false);
+      return;
+    }
+    if (mode === 'consultationFlashcardDefinition') {
+      startConsultationFlashcard(true);
       return;
     }
     if (mode === 'consultation') {
@@ -692,7 +722,7 @@ export default function LessicoGame() {
     setIsTimerRunning(false);
   };
 
-  const startConsultationFlashcard = () => {
+  const startConsultationFlashcard = (showDefinitionOnly = false) => {
     const current = getFilteredWords();
     if (!current.length) {
       setSelectionWarning('Nessuna parola selezionata');
@@ -704,7 +734,7 @@ export default function LessicoGame() {
     );
     setActivePool(pool);
     setShuffledWords(pool);
-    setGameMode('consultationFlashcard');
+    setGameMode(showDefinitionOnly ? 'consultationFlashcardDefinition' : 'consultationFlashcard');
     setShowModeSelection(false);
     setPendingMode(null);
     setCurrentIndex(0);
@@ -859,6 +889,12 @@ export default function LessicoGame() {
     });
   }, []);
 
+  useEffect(() => {
+    if (menuTab !== 'results') {
+      setResultsView('menu');
+    }
+  }, [menuTab]);
+
   const preserveReviewScroll = (action) => {
     const el = reviewListRef.current;
     const top = el?.scrollTop ?? null;
@@ -921,6 +957,14 @@ export default function LessicoGame() {
       addPlayedWord(current, isCurrCorrect);
     }
   }, [currentIndex, gameMode, shuffledWords, addPlayedWord, isCorrect]);
+
+  useEffect(() => {
+    runFoxBreathing();
+    foxBreathInterval.current = setInterval(runFoxBreathing, 180000);
+    return () => {
+      clearFoxBreathing();
+    };
+  }, []);
 
   // Gestione risposta corretta
   const handleCorrectAnswer = () => {
@@ -1468,7 +1512,10 @@ export default function LessicoGame() {
               Giochi
             </button>
             <button
-              onClick={() => setShowReviewPanel(true)}
+              onClick={() => {
+                setResultsView('menu');
+                setMenuTab('results');
+              }}
               className="flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border text-slate-300 hover:text-orange-200 border-slate-600/70"
             >
               Risultati
@@ -1483,14 +1530,20 @@ export default function LessicoGame() {
               {[
                 {
                   key: 'consultation',
-                  label: 'Studio (elenco)',
+                  label: 'Elenco',
                   description: 'Visualizza le parole filtrate in elenco con definizioni ed esempi.',
                   icon: <BookOpen className="w-4 h-4" />
                 },
                 {
                   key: 'consultationFlashcard',
-                  label: 'Studio (flashcard)',
-                  description: 'Gira le carte per leggere dettagli ed esempi.',
+                  label: 'Flashcard termine',
+                  description: 'Vedi la parola, clicca per leggere definizione e dettagli.',
+                  icon: <Brain className="w-4 h-4" />
+                },
+                {
+                  key: 'consultationFlashcardDefinition',
+                  label: 'Flashcard definizione',
+                  description: 'Vedi solo la definizione, clicca per scoprire il lemma e i dettagli.',
                   icon: <Brain className="w-4 h-4" />
                 }
               ].map((mode) => (
@@ -1511,7 +1564,7 @@ export default function LessicoGame() {
               ))}
             </div>
           </div>
-        ) : (
+        ) : menuTab === 'games' ? (
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
             <p className="text-slate-400 text-sm mb-3">Scegli il gioco che preferisci</p>
             <div className="grid gap-2">
@@ -1539,6 +1592,8 @@ export default function LessicoGame() {
               ))}
             </div>
           </div>
+        ) : (
+          <ReviewPanel />
         )}
 
       </div>
@@ -1664,197 +1719,229 @@ export default function LessicoGame() {
       });
     };
 
-    return (
-      <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto"
-        onClick={() => setShowReviewPanel(false)}
-      >
-        <div className="min-h-screen flex items-center justify-center p-4 py-8">
-          <div
-            className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl max-w-2xl w-full border border-slate-700/50 flex flex-col max-h-[92vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 gap-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold text-slate-100">📊 Risultati</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowReviewHelp(true)}
-                  className="w-5 h-5 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
-                  aria-label="Info Risultati"
-                >
-                  i
-                </button>
-              </div>
-              <p className="text-slate-400 text-sm">{activeList.length} parole</p>
-                <button
-                  onClick={() => setShowReviewPanel(false)}
-                  className="text-slate-500 hover:text-slate-300 text-2xl"
-                >
-                  ✕
-                </button>
-            </div>
+    const detailTitle = reviewView === 'review' ? 'Ripasso' : reviewView === 'played' ? 'Risposte corrette' : 'Apprese';
 
-            <div className="px-4 pt-4">
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setReviewView('review')}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${reviewView === 'review' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)]' : 'bg-slate-800 text-slate-200 hover:text-orange-100'}`}
-                >
-                  Ripasso ({wordsToReview.length})
-                </button>
-                <button
-                  onClick={() => setReviewView('played')}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${reviewView === 'played' ? 'bg-amber-400 text-slate-900 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'bg-slate-800 text-slate-200 hover:text-orange-100'}`}
-                >
-                  Risposte corrette ({playedWords.length})
-                </button>
-                <button
-                  onClick={() => setReviewView('learned')}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${reviewView === 'learned' ? 'bg-emerald-600 text-emerald-50 shadow-[0_6px_18px_-12px_rgba(16,185,129,0.45)]' : 'bg-slate-800 text-slate-200 hover:text-emerald-100'}`}
-                >
-                  Apprese ({words.filter(w => w.learned).length})
-                </button>
-              </div>
-            </div>
-            
-            {activeList.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                {emptyMessage}
-              </div>
-            ) : (
-              <>
-                <div
-                  ref={reviewListRef}
-                  className="p-4 overflow-y-auto flex-1 min-h-0"
-                  onScroll={() => {
-                    if (reviewListRef.current) {
-                      reviewScrollPos.current = reviewListRef.current.scrollTop;
-                    }
-                  }}
-                >
-                  {activeList.map((word, idx) => {
-                    const isLearned = !!word.learned;
-                    const inReview = wordsToReview.some(w => w.term === word.term);
-                    return (
-                      <div key={word.term} className="bg-slate-800/30 rounded-xl p-4 mb-3 border border-slate-700/50">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-lg font-bold text-slate-100">{word.term}</h3>
-                            </div>
-                            {word.accent && (
-                              <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
-                            )}
-                            {word.source && (
-                              <p className="text-slate-500 text-xs mt-1 capitalize">Origine: {word.source === 'game' ? 'Errore/gioco' : 'Aggiunta manuale'}</p>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-2 items-end">
-                            {isReviewList && (
-                              <>
-                                <button
-                                  onClick={() => markWordAsLearned(word.term)}
-                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-emerald-600 text-emerald-50 hover:bg-emerald-500"
-                                >
-                                  Appresa
-                                </button>
-                                <button
-                                  onClick={() => markWordAsToReview(word.term)}
-                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600"
-                                >
-                                  Ripasso
-                                </button>
-                                <button
-                                  onClick={() => handleRemove(idx)}
-                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-red-600 text-white hover:bg-red-500"
-                                >
-                                  Appresa: NO
-                                </button>
-                              </>
-                            )}
-                            {isCorrectList && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    preserveReviewScroll(() => {
-                                      markWordAsToReview(word.term);
-                                      setPlayedWords(prev => prev.filter(w => w.term !== word.term));
-                                    });
-                                  }}
-                                  className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-400"
-                                >
-                                  Aggiungi a Ripasso
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    preserveReviewScroll(() => {
-                                      markWordAsLearned(word.term);
-                                      setPlayedWords(prev => prev.filter(w => w.term !== word.term));
-                                    });
-                                  }}
-                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-emerald-600 text-emerald-50 hover:bg-emerald-500"
-                                >
-                                  Appresa
-                                </button>
-                              </>
-                            )}
-                            {isLearnedList && (
-                              <button
-                                onClick={() => {
-                                  preserveReviewScroll(() => {
-                                    markWordAsToReview(word.term);
-                                  });
-                                }}
-                                className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-400"
-                              >
-                                Aggiungi a Ripasso
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-slate-300 mt-2">{word.definition}</p>
-                        {word.etymology && (
-                          <p className="text-slate-400 text-sm italic mt-2">{word.etymology}</p>
-                        )}
-                        <ExamplesBlock word={word} />
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                <div className="p-4 border-t border-slate-700/50 space-y-3 flex-shrink-0 bg-slate-900/50">
-                  {copyFeedback && (
-                    <div className="text-center text-cyan-400 font-medium mb-2">
-                      {copyFeedback}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <label className="text-slate-400 text-sm flex-shrink-0">Scarica:</label>
-                    <select
-                      value={exportFormat}
-                      onChange={(e) => setExportFormat(e.target.value)}
-                      className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
-                    >
-                      <option value="text">TXT (parole da rivedere/errori)</option>
-                      <option value="csv">CSV completo con errori/da rivedere</option>
-                    </select>
-                    <button
-                      onClick={() => downloadFile(exportFormat)}
-                      className="bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
-                    >
-                      Scarica
-                    </button>
-                  </div>
-                  <p className="text-slate-500 text-xs">Suggerimento: rinomina il file aggiungendo la data di oggi per ricordare quale versione stai usando quando lo ricarichi.</p>
-
-                  <FoxInline />
-                </div>
-              </>
-            )}
+    const DownloadBlock = () => (
+      <div className="pt-4 border-t border-slate-700/50 space-y-3 flex-shrink-0 bg-slate-900/30 rounded-2xl p-4">
+        {copyFeedback && (
+          <div className="text-center text-cyan-400 font-medium mb-2">
+            {copyFeedback}
           </div>
+        )}
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-slate-400 text-sm flex-shrink-0">Scarica:</label>
+          <select
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value)}
+            className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
+          >
+            <option value="text">TXT (parole da rivedere/errori)</option>
+            <option value="csv">CSV completo con errori/da rivedere</option>
+          </select>
+          <button
+            onClick={() => downloadFile(exportFormat)}
+            className="bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
+          >
+            Scarica
+          </button>
         </div>
+        <p className="text-slate-500 text-xs">Suggerimento: rinomina il file aggiungendo la data di oggi per ricordare quale versione stai usando quando lo ricarichi.</p>
+      </div>
+    );
+
+    let content = null;
+
+    if (resultsView === 'menu') {
+      content = (
+        <>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <p className="text-slate-400 text-sm">Scegli la vista dei risultati</p>
+            <button
+              type="button"
+              onClick={() => setShowReviewHelp(true)}
+              className="w-6 h-6 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+              aria-label="Info Risultati"
+            >
+              i
+            </button>
+          </div>
+
+          <div className="grid gap-2">
+            {[
+              {
+                key: 'review',
+                label: `Ripasso (${wordsToReview.length})`,
+                description: 'Parole segnate per i prossimi ripassi.'
+              },
+              {
+                key: 'played',
+                label: `Risposte corrette (${playedWords.length})`,
+                description: 'Le ultime risposte giuste nei giochi.'
+              },
+              {
+                key: 'learned',
+                label: `Apprese (${words.filter(w => w.learned).length})`,
+                description: 'Parole che hai già memorizzato.'
+              }
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => {
+                  setReviewView(item.key);
+                  setResultsView(item.key);
+                }}
+                className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 border text-slate-200 hover:text-orange-200 hover:border-amber-300/60 border-slate-600/70 bg-slate-800/80 hover:bg-slate-700/70"
+              >
+                <div className="flex flex-col">
+                  <span>{item.label}</span>
+                  <span className="text-xs font-normal text-slate-400">{item.description}</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    } else {
+      content = (
+        <>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setResultsView('menu')}
+                className="flex items-center gap-2 text-slate-300 hover:text-orange-200 text-sm font-semibold"
+              >
+                <ChevronLeft className="w-4 h-4" /> Risultati
+              </button>
+              <span className="text-slate-500">/</span>
+              <h2 className="text-xl font-bold text-slate-100">{detailTitle}</h2>
+            </div>
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <span>{activeList.length} parole</span>
+              <button
+                type="button"
+                onClick={() => setShowReviewHelp(true)}
+                className="w-6 h-6 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+                aria-label="Info Risultati"
+              >
+                i
+              </button>
+            </div>
+          </div>
+
+          {activeList.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              {emptyMessage}
+            </div>
+          ) : (
+            <div
+              ref={reviewListRef}
+              className="p-2 overflow-y-auto max-h-[55vh] rounded-xl"
+              onScroll={() => {
+                if (reviewListRef.current) {
+                  reviewScrollPos.current = reviewListRef.current.scrollTop;
+                }
+              }}
+            >
+              {activeList.map((word, idx) => {
+                const isLearned = !!word.learned;
+                const inReview = wordsToReview.some(w => w.term === word.term);
+                return (
+                  <div key={word.term} className="bg-slate-800/30 rounded-xl p-4 mb-3 border border-slate-700/50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-slate-100">{word.term}</h3>
+                        </div>
+                        {word.accent && (
+                          <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
+                        )}
+                        {word.source && (
+                          <p className="text-slate-500 text-xs mt-1 capitalize">Origine: {word.source === 'game' ? 'Errore/gioco' : 'Aggiunta manuale'}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2 items-end">
+                        {isReviewList && (
+                          <>
+                            <button
+                              onClick={() => markWordAsLearned(word.term)}
+                              className="text-xs px-3 py-1 rounded-full transition font-semibold bg-emerald-600 text-emerald-50 hover:bg-emerald-500"
+                            >
+                              Appresa
+                            </button>
+                            <button
+                              onClick={() => markWordAsToReview(word.term)}
+                              className="text-xs px-3 py-1 rounded-full transition font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600"
+                            >
+                              Ripasso
+                            </button>
+                            <button
+                              onClick={() => handleRemove(idx)}
+                              className="text-xs px-3 py-1 rounded-full transition font-semibold bg-red-600 text-white hover:bg-red-500"
+                            >
+                              Appresa: NO
+                            </button>
+                          </>
+                        )}
+                        {isCorrectList && (
+                          <>
+                            <button
+                              onClick={() => {
+                                preserveReviewScroll(() => {
+                                  markWordAsToReview(word.term);
+                                  setPlayedWords(prev => prev.filter(w => w.term !== word.term));
+                                });
+                              }}
+                              className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-400"
+                            >
+                              Aggiungi a Ripasso
+                            </button>
+                            <button
+                              onClick={() => {
+                                preserveReviewScroll(() => {
+                                  markWordAsLearned(word.term);
+                                  setPlayedWords(prev => prev.filter(w => w.term !== word.term));
+                                });
+                              }}
+                              className="text-xs px-3 py-1 rounded-full transition font-semibold bg-emerald-600 text-emerald-50 hover:bg-emerald-500"
+                            >
+                              Appresa
+                            </button>
+                          </>
+                        )}
+                        {isLearnedList && (
+                          <button
+                            onClick={() => {
+                              preserveReviewScroll(() => {
+                                markWordAsToReview(word.term);
+                              });
+                            }}
+                            className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-400"
+                          >
+                            Aggiungi a Ripasso
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-slate-300 mt-2">{word.definition}</p>
+                    {word.etymology && (
+                      <p className="text-slate-400 text-sm italic mt-2">{word.etymology}</p>
+                    )}
+                    <ExamplesBlock word={word} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-5 shadow-xl space-y-4">
+        {content}
+        <DownloadBlock />
       </div>
     );
   };
@@ -2064,7 +2151,11 @@ export default function LessicoGame() {
         <>
           {wordsToReview.length > 0 && (
             <button
-              onClick={() => setShowReviewPanel(true)}
+              onClick={() => {
+                setGameMode(null);
+                setMenuTab('results');
+                setResultsView('menu');
+              }}
               className="bg-slate-900/20 px-3 py-1 rounded-full flex items-center gap-1 hover:bg-slate-900/30 transition-colors border border-slate-900/30 text-slate-900"
             >
               <BookOpen className="w-4 h-4" />
@@ -2669,7 +2760,11 @@ export default function LessicoGame() {
 
         {wordsToReview.length > 0 && (
           <button
-            onClick={() => setShowReviewPanel(true)}
+            onClick={() => {
+              setGameMode(null);
+              setMenuTab('results');
+              setResultsView('menu');
+            }}
             className="w-full mb-4 bg-sky-950/30 hover:bg-sky-950/50 border border-sky-900/50 text-sky-400 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             <BookOpen className="w-5 h-5" />
@@ -2825,7 +2920,11 @@ export default function LessicoGame() {
                 <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
                 {wordsToReview.length > 0 && (
                   <button
-                    onClick={() => setShowReviewPanel(true)}
+                    onClick={() => {
+                      setGameMode(null);
+                      setMenuTab('results');
+                      setResultsView('menu');
+                    }}
                     className="text-cyan-300 text-xs underline underline-offset-2 hover:text-cyan-200"
                   >
                     Da rivedere: {wordsToReview.length}
@@ -2895,7 +2994,7 @@ export default function LessicoGame() {
   };
 
   // Consultation Flashcard Mode
-  const ConsultationFlashcardMode = () => {
+  const ConsultationFlashcardMode = ({ showDefinitionFirst = false }) => {
     let pool = activePool.length ? activePool : getFilteredWords();
     if (consultLetter !== 'all') {
       pool = pool.filter(w => (w.term?.[0] || '').toLowerCase() === consultLetter.toLowerCase());
@@ -2949,6 +3048,16 @@ export default function LessicoGame() {
     const toggleFlip = (term) => {
       setConsultFlipped(prev => ({ ...prev, [term]: !prev[term] }));
     };
+    useEffect(() => {
+      if (!showDefinitionFirst || !pool.length) return;
+      setConsultFlipped((prev) => {
+        // Se già inizializzato, non resettare per permettere il flip
+        if (Object.keys(prev).length > 0) return prev;
+        const next = {};
+        pool.forEach((w) => { next[w.term] = false; });
+        return next;
+      });
+    }, [showDefinitionFirst, pool]);
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
@@ -2962,20 +3071,29 @@ export default function LessicoGame() {
                 ← Menu
               </button>
             </div>
-            <div className="flex flex-wrap gap-4 items-center justify-between">
+            <div className="flex flex-col gap-3">
               <div>
-                <h2 className="text-3xl font-bold text-slate-100">Consultazione Flashcard</h2>
-                <p className="text-slate-400 text-sm">Parole filtrate: {filteredCount}</p>
+                <h2 className="text-3xl font-bold text-slate-100">
+                  {showDefinitionFirst ? 'Flashcard definizione' : 'Flashcard termine'}
+                </h2>
+                <p className="text-slate-400 text-sm">
+                  {showDefinitionFirst ? 'Vedi la definizione, clicca per scoprire il lemma.' : 'Vedi il lemma, clicca per definizione e dettagli.'}
+                </p>
+                <p className="text-slate-500 text-xs mt-1">Parole filtrate: {filteredCount}</p>
                 {wordsToReview.length > 0 && (
                   <button
-                    onClick={() => setShowReviewPanel(true)}
+                    onClick={() => {
+                      setGameMode(null);
+                      setMenuTab('results');
+                      setResultsView('menu');
+                    }}
                     className="text-cyan-300 text-xs underline underline-offset-2 hover:text-cyan-200"
                   >
                     Da rivedere: {wordsToReview.length}
                   </button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={consultLetter}
                   onChange={(e) => setConsultLetter(e.target.value)}
@@ -3009,86 +3127,74 @@ export default function LessicoGame() {
               Nessuna parola per questi filtri/ricerca.
             </div>
           ) : (
-            <div className="space-y-3">
-              <p className="text-slate-500 text-sm mb-1 px-1">Casuale / tutte le parole — clicca sulla lettera per espandere</p>
-              {sections.map(section => (
-                <div key={section.letter} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl">
-                  <button
-                    onClick={() => setConsultFlashOpenLetter(prev => (prev === section.letter ? null : section.letter))}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left text-slate-200 font-semibold"
+            <div className="grid gap-4 md:grid-cols-2">
+              {sections.flatMap(section => section.words).map((word) => {
+                const isFlipped = consultFlipped[word.term];
+                return (
+                  <div
+                    key={word.term}
+                    className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:border-cyan-800/60 transition-colors cursor-pointer"
+                    onClick={() => toggleFlip(word.term)}
                   >
-                    <span className="text-lg">{section.combined ? section.letter : `Lettera ${section.letter}`}</span>
-                    <span className="text-sm text-slate-400">({section.words.length})</span>
-                  </button>
-                  {consultFlashOpenLetter === section.letter && (
-                    <div className="grid gap-4 md:grid-cols-2 px-4 pb-4">
-                      {section.words.map((word) => {
-                        const isFlipped = consultFlipped[word.term];
-                        return (
-                          <div
-                            key={word.term}
-                            className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:border-cyan-800/60 transition-colors cursor-pointer"
-                            onClick={() => toggleFlip(word.term)}
-                          >
-                            {!isFlipped ? (
-                              <div className="min-h-[120px] flex items-center justify-center">
-                                <h3 className="text-2xl font-bold text-slate-100">{word.term}</h3>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
-                                    {word.accent && (
-                                      <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
-                                    )}
-                                  </div>
-                                  {(() => {
-                                    const inReview = wordsToReview.some(w => w.term === word.term);
-                                    return (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const currentLetter = section.letter;
-                                      setWordsToReview(prev => {
-                                        if (prev.some(w => w.term === word.term)) {
-                                          triggerAddedFeedback('duplicate');
-                                          return prev;
-                                        }
-                                        triggerAddedFeedback('added');
-                                        return [...prev, { ...word, errorFlag: 'SI', source: 'manual', learned: false }];
-                                      });
-                                      setConsultFlashOpenLetter(currentLetter);
-                                    }}
-                                        className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'bg-cyan-900/40 text-cyan-200 border-cyan-800/50 hover:bg-cyan-900/60'}`}
-                                  >
-                                    + Da rivedere
-                                  </button>
-                                    );
-                                  })()}
-                                </div>
-                            <p className="text-slate-200 leading-relaxed">{word.definition}</p>
-                            {word.etymology && (
-                              <p className="text-slate-400 text-sm italic">{word.etymology}</p>
-                            )}
-                            {(word.frequencyUsage || (word.technical && word.technical.toLowerCase() !== 'comune') || (word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno')) && (
-                              <div className="text-slate-400 text-xs space-y-1 mt-2">
-                                {word.frequencyUsage && <p>Frequenza d'uso: {word.frequencyUsage}</p>}
-                                {word.technical && word.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {word.technical}</p>}
-                                {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {word.commonErrors}</p>}
-                              </div>
-                            )}
-                            <ExamplesBlock word={word} />
-                                <p className="text-slate-500 text-xs">Clicca per richiudere</p>
-                              </div>
+                    {!isFlipped ? (
+                      showDefinitionFirst ? (
+                        <div className="min-h-[140px] flex items-center justify-center text-center px-2">
+                          <p className="text-lg text-slate-100">{word.definition || '—'}</p>
+                        </div>
+                      ) : (
+                        <div className="min-h-[120px] flex items-center justify-center">
+                          <h3 className="text-2xl font-bold text-slate-100">{word.term}</h3>
+                        </div>
+                      )
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
+                            {word.accent && (
+                              <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
+                          {(() => {
+                            const inReview = wordsToReview.some(w => w.term === word.term);
+                            return (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setWordsToReview(prev => {
+                                    if (prev.some(w => w.term === word.term)) {
+                                      triggerAddedFeedback('duplicate');
+                                      return prev;
+                                    }
+                                    triggerAddedFeedback('added');
+                                    return [...prev, { ...word, errorFlag: 'SI', source: 'manual', learned: false }];
+                                  });
+                                }}
+                                className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'bg-cyan-900/40 text-cyan-200 border-cyan-800/50 hover:bg-cyan-900/60'}`}
+                              >
+                                + Da rivedere
+                              </button>
+                            );
+                          })()}
+                        </div>
+                        <p className="text-slate-200 leading-relaxed">{word.definition}</p>
+                        {word.etymology && (
+                          <p className="text-slate-400 text-sm italic">{word.etymology}</p>
+                        )}
+                        {(word.frequencyUsage || (word.technical && word.technical.toLowerCase() !== 'comune') || (word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno')) && (
+                          <div className="text-slate-400 text-xs space-y-1 mt-2">
+                            {word.frequencyUsage && <p>Frequenza d'uso: {word.frequencyUsage}</p>}
+                            {word.technical && word.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {word.technical}</p>}
+                            {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {word.commonErrors}</p>}
+                          </div>
+                        )}
+                        {word.examples && word.examples.length > 0 && <ExamplesBlock word={word} />}
+                        <p className="text-slate-500 text-xs">Clicca per richiudere</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
           <FoxInline />
@@ -3131,7 +3237,6 @@ export default function LessicoGame() {
           </div>
         </div>
       )}
-      {showReviewPanel && <ReviewPanel />}
       {showSelectionPanel && <SelectionPanel />}
       {showInstructions && <InstructionsModal />}
       {showReviewHelp && <ReviewInfoModal />}
@@ -3161,6 +3266,7 @@ export default function LessicoGame() {
        gameMode === 'results' ? <ResultsScreen /> :
        gameMode === 'consultation' ? <ConsultationMode /> :
        gameMode === 'consultationFlashcard' ? <ConsultationFlashcardMode /> :
+       gameMode === 'consultationFlashcardDefinition' ? <ConsultationFlashcardMode showDefinitionFirst /> :
        gameMode === 'flashcard' ? <FlashcardMode /> :
        (gameMode === 'quiz' || gameMode === 'speedQuiz') ? <QuizMode /> :
        gameMode === 'phrase' ? <PhraseMode /> :
