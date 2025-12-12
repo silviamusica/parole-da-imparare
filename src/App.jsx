@@ -662,9 +662,9 @@ export default function LessicoGame() {
           <div className="border-t border-slate-700 pt-4 space-y-2">
             <p className="font-semibold">2. 📑 Le tre tab</p>
             <div className="space-y-2 text-slate-300">
-              <p><strong>a) Studio</strong>: scegli tra Vista Schede (elenco con definizioni, etimologia ed esempi), Flashcard termine (mostra il lemma) o Flashcard definizione (mostra solo la definizione, clicca per scoprire il lemma); da qui puoi aggiungere parole alla sezione Risultati.</p>
+              <p><strong>a) Studio</strong>: scegli tra Vista Schede (elenco con definizioni, etimologia ed esempi), Flashcard termine (mostra il lemma, clicca per leggere definizione e dettagli) o Flashcard definizione (mostra solo la definizione, clicca per scoprire il lemma e i dettagli); da qui puoi aggiungere parole alla sezione Risultati.</p>
               <p><strong>b) Giochi</strong>: Quiz, Completa, Memory e Frasi usano sempre il set filtrato; ideali per metterti alla prova e ripassare, dopo lo studio.</p>
-              <p><strong>c) Risultati</strong> (ex “Parole da rivedere”): raccoglie errori e parole che hai contrassegnato. Puoi scaricare/export in CSV o testo, filtrare per “Ripasso”, “Appresa: sì/no/ripasso” e ricaricare il CSV in sessioni future.</p>
+              <p><strong>c) Risultati</strong>: qui trovi tre liste: “Ripasso” (parole che hai contrassegnato in questa sessione), “Risposte corrette” (le ultime giuste nei giochi) e “Apprese” (contrassegnate come SI). Puoi spostare le parole tra gli stati, esportare CSV/TXT con i contrassegni aggiornati e ricaricarli nelle sessioni future.</p>
             </div>
           </div>
         </div>
