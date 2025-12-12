@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle } from 'lucide-react';
+import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle, Download } from 'lucide-react';
 import LogoVolpinaChiusi from '../volpina-occhi-chiusi.png';
 import LogoVolpinaOcchiAperti from '../volpina-occhi-aperti.png';
 import LogoVolpinaTestaAlzata from '../volpina-testa-alzata.png';
@@ -1258,11 +1258,11 @@ export default function LessicoGame() {
           </button>
         </div>
         <h1 className="text-3xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
-        <p className="text-slate-400 mb-8">Impara parole nuove giocando!</p>
+        <p className="text-slate-400 mb-5">Impara parole nuove giocando!</p>
         
         <div className="space-y-2">
           <div className="flex items-center justify-center gap-2">
-            <p className="text-slate-200 font-medium">Carica il tuo CSV</p>
+            <p className="text-slate-200 font-normal text-base">Carica il tuo CSV</p>
             <button
               onClick={() => setShowUploadInfo(true)}
               className="w-7 h-7 rounded-full border border-slate-600 text-slate-300 text-sm flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
@@ -1273,7 +1273,7 @@ export default function LessicoGame() {
           </div>
           <label className="block cursor-pointer group">
             <div
-              className="border-2 border-dashed border-slate-600 rounded-2xl p-8 transition-all group-hover:border-cyan-700 group-hover:bg-slate-700/20"
+              className="border-2 border-dashed border-slate-600 rounded-2xl p-6 transition-all group-hover:border-cyan-700 group-hover:bg-slate-700/20"
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -1289,22 +1289,22 @@ export default function LessicoGame() {
           </label>
         </div>
 
-        <div className="mt-6">
-          <button
-            onClick={loadDemoWords}
-            className="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-100 px-4 py-3 rounded-xl border border-slate-700/60 transition-colors"
-          >
-            Prova demo (50 parole)
-          </button>
-          <p className="text-slate-500 text-xs mt-2">Se non hai ancora un file tuo, gioca con un set di esempio.</p>
-
+        <div className="mt-6 space-y-4">
+          <p className="text-slate-200 font-normal text-base">Scarica il modello CSV da personalizzare, oppure prova subito la demo.</p>
           <button
             onClick={() => downloadFile('csv_empty')}
-            className="w-full mt-3 bg-slate-800/60 hover:bg-slate-800 text-slate-100 px-4 py-3 rounded-xl border border-slate-700/60 transition-colors"
+            className="w-full bg-orange-500 hover:bg-orange-400 text-white font-semibold px-4 py-3 rounded-xl border border-orange-300 transition-colors shadow-[0_10px_30px_-12px_rgba(249,115,22,0.7)] flex items-center justify-center gap-2"
           >
-            Scarica il modello
+            <Download className="w-5 h-5" aria-hidden="true" />
+            <span>Scarica il modello</span>
           </button>
-          <p className="text-slate-500 text-xs mt-2">Scarica il modello con intestazione, valori già impostati ed esempi da cui partire.</p>
+          <button
+            onClick={loadDemoWords}
+            className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold px-4 py-3 rounded-xl border border-amber-200 transition-colors shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)] flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-5 h-5" aria-hidden="true" />
+            <span>Prova demo (50 parole)</span>
+          </button>
         </div>
       </div>
     </div>
