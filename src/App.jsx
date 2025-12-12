@@ -91,20 +91,22 @@ const parseCSV = (text) => {
     const term = getField(row, 1, 'termine', 'parola', 'term');
     const accent = getField(row, 2, 'accento', 'accent');
     const definition = getField(row, 3, 'definizione', 'definition');
-    const etymology = getField(row, 4, 'etimologia', 'etimo');
-    const ex1 = getField(row, 5, 'esempio 1', 'esempio', 'example');
-    const ex2 = getField(row, 6, 'esempio 2');
-    const ex3 = getField(row, 7, 'esempio 3');
-    const frequencyUsage = getField(row, 8, "frequenza d'uso", 'frequenza uso');
-    const technical = getField(row, 9, 'linguaggio tecnico');
+    const synonyms = getField(row, 4, 'sinonimi', 'sinonimo', 'synonyms');
+    const antonyms = getField(row, 5, 'contrari', 'antonomi', 'antonimi', 'antonyms');
+    const etymology = getField(row, 6, 'etimologia', 'etimo');
+    const ex1 = getField(row, 7, 'esempio 1', 'esempio', 'example');
+    const ex2 = getField(row, 8, 'esempio 2');
+    const ex3 = getField(row, 9, 'esempio 3');
+    const frequencyUsage = getField(row, 10, "frequenza d'uso", 'frequenza uso');
+    const technical = getField(row, 11, 'linguaggio tecnico');
     const insertedAtRaw = getField(row, 0, 'data di inserimento', 'data_inserimento', 'data');
-    const favoriteRaw = getField(row, 12, 'preferito', 'favorite');
+    const favoriteRaw = getField(row, 14, 'preferito', 'favorite');
     const insertedAt = normalizeDate(insertedAtRaw);
-    const errorRaw = getField(row, 10, 'errori', 'errorflag', 'error');
+    const errorRaw = getField(row, 12, 'errori', 'errorflag', 'error');
     const normalizedErrorFlag = normalizeYesNo(errorRaw);
     const errorFlag = normalizedErrorFlag === 'SI' ? 'SI' : 'NO';
     const commonErrors = normalizedErrorFlag ? '' : (errorRaw || '');
-    const learned = normalizeYesNo(getField(row, 11, 'appreso')) === 'SI';
+    const learned = normalizeYesNo(getField(row, 13, 'appreso')) === 'SI';
     const appreso = learned ? 'SI' : 'NO';
 
     if (term && definition) {
@@ -114,6 +116,8 @@ const parseCSV = (text) => {
         accent,
         definition,
         etymology,
+        synonyms: synonyms || '',
+        antonyms: antonyms || '',
         example: examples,
         example1: ex1 || '',
         example2: ex2 || '',
@@ -1151,22 +1155,25 @@ export default function LessicoGame() {
       ).join('\n---\n\n');
     } else if (format === 'csv') {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere (nuovo schema)
-      const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
+      const header = "Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito\n";
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
       const rows = words.map(w => {
         const appreso = reviewTerms.has(w.term) ? 'RIPASSO' : (w.learned ? 'SI' : 'NO');
-  const errorValue = reviewTerms.has(w.term) ? 'Ripasso' : (w.commonErrors || 'NO');
-        return `"${normalizeDate(w.insertedAt) || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${errorValue}","${appreso}"`;
+        const errorValue = reviewTerms.has(w.term) ? 'Ripasso' : (w.commonErrors || 'NO');
+        const favoriteValue = w.favorite || favorites.has(w.term) ? 'SI' : 'NO';
+        return `"${normalizeDate(w.insertedAt) || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.synonyms || ''}","${w.antonyms || ''}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${errorValue}","${appreso}","${favoriteValue}"`;
       }).join('\n');
       return header + rows;
     } else if (format === 'csv_empty') {
       // CSV vuoto con intestazioni + riga istruzioni + riga esempio
-      const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO";
+      const header = "Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito";
       const instructions = [
         'GG-MM-AA (es. 14-10-25)',
         'Termine (obbligatorio)',
         "Accento (es. caffè → caff\u00e8)",
         'Definizione chiara e breve (obbligatoria)',
+        'Sinonimi (facoltativo, separa con ;) ',
+        'Contrari (facoltativo, separa con ;) ',
         'Etimologia (facoltativo)',
         'Caso d\'uso 1 (obbligatorio)',
         'Caso d\'uso 2 (facoltativo)',
@@ -1174,22 +1181,26 @@ export default function LessicoGame() {
         "Frequenza d'uso (Bassa/Media/Alta)",
         "Linguaggio tecnico (Comune/Medico/Legale...)", 
         "Errori: descrizione (es. 'spesso confuso con...') oppure NO",
-        'APPRESO: SI/NO/RIPASSO'
+        'APPRESO: SI/NO/RIPASSO',
+        'Preferito: SI/NO'
       ].map(v => `"${v.replace(/"/g, '""')}"`).join(',');
 
       const sample = [
         '14-10-25',
-        'Abbacinato',
-        'abbacin\u00e0to',
-        'Accecato o confuso da una luce troppo intensa.',
-        'Deriva dal latino "abbacinare", accecare.',
-        'Fu abbacinato dal riflesso del sole sul mare.',
-        'Rimase abbacinato dalla bellezza del paesaggio innevato.',
-        'Uscendo dal cinema, fu abbacinato dalla luce pomeridiana.',
-        'Bassa',
-        'Letterario',
-        'Spesso confuso con "abbagliato"; errori di calligrafia es. "accaponare" con una sola p.',
-        'NO'
+        'Lampada',
+        'l\u00e0mpada',
+        'Dispositivo che produce luce artificiale.',
+        'lume;lucerna',
+        'illuminare',
+        'Dal latino tardo lampas, -adis, dal greco lamp\u00e1s.',
+        'Ho acceso la lampada sul comodino.',
+        'La lampada in salotto diffonde una luce calda.',
+        'Questa lampada \u00e8 troppo debole per leggere.',
+        'Media',
+        'Comune',
+        'No',
+        'NO',
+        'SI'
       ].map(v => `"${v.replace(/"/g, '""')}"`).join(',');
 
       return `${header}\n${instructions}\n${sample}\n`;
@@ -1334,8 +1345,14 @@ export default function LessicoGame() {
             <p className="italic text-slate-300">{word.etymology}</p>
           )}
         </div>
-        {(word.frequencyUsage || word.technical || showCommonErrors) && (
+        {(word.synonyms || word.antonyms || word.frequencyUsage || word.technical || showCommonErrors) && (
           <div className="text-sm text-slate-200 space-y-1">
+            {word.synonyms && (
+              <p><span className="font-semibold">Sinonimi:</span> <span className="text-slate-100">{word.synonyms}</span></p>
+            )}
+            {word.antonyms && (
+              <p><span className="font-semibold">Contrari:</span> <span className="text-slate-100">{word.antonyms}</span></p>
+            )}
             {word.frequencyUsage && (
               <p><span className="font-semibold">Frequenza d'uso:</span> <span className="text-slate-100">{word.frequencyUsage}</span></p>
             )}
@@ -3420,10 +3437,10 @@ export default function LessicoGame() {
         </div>
         <div className="space-y-2 text-sm leading-relaxed text-slate-200">
           <p>Scarica il modello CSV già pronto: ha intestazione, valori preimpostati e una riga di esempio.</p>
-          <p>Mantieni l’ordine delle 12 colonne: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</p>
+          <p>Mantieni l’ordine delle 15 colonne: Data di inserimento, Termine, Accento, Definizione, Sinonimi, Contrari, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO, Preferito.</p>
           <p>Non è obbligatorio compilare tutto: indispensabili solo “Termine” e “Definizione”; le altre colonne possono restare vuote.</p>
           <p>Esporta/salva come CSV UTF-8 con separatore virgola (no “;” o tab).</p>
-          <p>Formati: Data in GG-MM-AA o vuota; APPRESO = SI/NO/RIPASSO; Errori = descrizione o “NO”.</p>
+          <p>Formati: Data in GG-MM-AA o vuota; APPRESO = SI/NO/RIPASSO; Preferito = SI/NO; Sinonimi/Contrari separati da “;”; Errori = descrizione o “NO”.</p>
           <p className="text-slate-400">Suggerimento: da Google Sheet/Excel/LibreOffice/Numbers scegli “Esporta/Salva come CSV” e non modificare l’intestazione.</p>
         </div>
       </div>
