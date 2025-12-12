@@ -2516,44 +2516,59 @@ export default function LessicoGame() {
               </div>
               <ExamplesBlock word={showCorrectAnswer || word} />
               {waitingForContinue && (
-                <button
-                  type="button"
-                  onClick={() => { setWaitingForContinue(false); nextWord(); }}
-                  className="mt-2 bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
-                >
-                  Continua
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setWaitingForContinue(false); nextWord(); }}
+                    className="mt-2 bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
+                  >
+                    Continua
+                  </button>
+                  <p className="text-center text-slate-500 text-xs">O premi Invio</p>
+                </>
               )}
             </div>
           )}
 
           {!waitingForContinue && (
             <>
-              <div className="flex gap-3 mb-3">
-                <input
-                  type="text"
-                  value={fillBlankInput}
-                  onChange={(e) => setFillBlankInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-                      e.preventDefault();
-                      e.currentTarget.select();
-                    }
-                  }}
-                  placeholder="Scrivi la parola..."
-                  className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
-                  disabled={isCorrect !== null || (hintData && hintData.lost)}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={checkFillBlank}
-                  disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
-                  className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Verifica
-                </button>
-              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (isCorrect === null && !waitingForContinue && fillBlankInput.trim() && !(hintData && hintData.lost)) {
+                    checkFillBlank();
+                  }
+                }}
+                className="flex flex-col items-stretch"
+              >
+                <div className="flex gap-3 mb-1">
+                  <input
+                    type="text"
+                    value={fillBlankInput}
+                    onChange={(e) => setFillBlankInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+                        e.preventDefault();
+                        e.currentTarget.select();
+                      }
+                    }}
+                    placeholder="Scrivi la parola..."
+                    className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
+                    disabled={isCorrect !== null || (hintData && hintData.lost)}
+                    autoFocus
+                  />
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      type="submit"
+                      disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
+                      className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Verifica
+                    </button>
+                    <p className="text-center text-slate-500 text-xs">O premi Invio</p>
+                  </div>
+                </div>
+              </form>
 
               <button
                 onClick={handleHintClick}
@@ -2673,44 +2688,59 @@ export default function LessicoGame() {
                 )}
               </div>
               {waitingForContinue && (
-                <button
-                  type="button"
-                  onClick={() => { setWaitingForContinue(false); nextWord(); }}
-                  className="mt-2 bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
-                >
-                  Continua
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setWaitingForContinue(false); nextWord(); }}
+                    className="mt-2 bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
+                  >
+                    Continua
+                  </button>
+                  <p className="text-center text-slate-500 text-xs">O premi Invio</p>
+                </>
               )}
             </div>
           )}
 
           {!waitingForContinue && (
             <>
-              <div className="flex gap-3 mb-3">
-                <input
-                  type="text"
-                  value={fillBlankInput}
-                  onChange={(e) => setFillBlankInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-                      e.preventDefault();
-                      e.currentTarget.select();
-                    }
-                  }}
-                  placeholder="Scrivi la parola..."
-                  className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
-                  disabled={isCorrect !== null || (hintData && hintData.lost)}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => checkPhraseAnswer(targetWord, word.term)}
-                  disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
-                  className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Verifica
-                </button>
-              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (isCorrect === null && !waitingForContinue && fillBlankInput.trim() && !(hintData && hintData.lost)) {
+                    checkPhraseAnswer(targetWord, word.term);
+                  }
+                }}
+                className="flex flex-col items-stretch"
+              >
+                <div className="flex gap-3 mb-1">
+                  <input
+                    type="text"
+                    value={fillBlankInput}
+                    onChange={(e) => setFillBlankInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+                        e.preventDefault();
+                        e.currentTarget.select();
+                      }
+                    }}
+                    placeholder="Scrivi la parola..."
+                    className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
+                    disabled={isCorrect !== null || (hintData && hintData.lost)}
+                    autoFocus
+                  />
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      type="submit"
+                      disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
+                      className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Verifica
+                    </button>
+                    <p className="text-center text-slate-500 text-xs">O premi Invio</p>
+                  </div>
+                </div>
+              </form>
 
               <button
                 onClick={handleHintClick}
