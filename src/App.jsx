@@ -272,18 +272,18 @@ export default function LessicoGame() {
   };
 
   const runFoxBreathing = () => {
+    // Una sola apertura occhi ogni ciclo, senza animazione
     foxBreathTimers.current.forEach((t) => clearTimeout(t));
     foxBreathTimers.current = [];
-    const pulses = [0, 2200]; // 2 respiri lenti
-    pulses.forEach((delay) => {
-      const on = setTimeout(() => {
-        setFoxAnimSize('small');
-        setFoxAnim(true);
-        const off = setTimeout(() => setFoxAnim(false), 1000); // 1s per tornare
-        foxBreathTimers.current.push(off);
-      }, delay);
-      foxBreathTimers.current.push(on);
-    });
+    const on = setTimeout(() => {
+      setFoxVariant('feedback-ok');
+      setFoxAnim(false);
+      const off = setTimeout(() => {
+        setFoxVariant('default');
+      }, 1200);
+      foxBreathTimers.current.push(off);
+    }, 0);
+    foxBreathTimers.current.push(on);
   };
 
   useEffect(() => {
@@ -770,6 +770,7 @@ export default function LessicoGame() {
 
   // Inizia nuovo gioco
   const startGame = (mode, limit) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     const basePool = getFilteredWords();
     if (!basePool.length) {
       triggerSelectionWarning('Nessuna parola selezionata');
@@ -985,7 +986,7 @@ export default function LessicoGame() {
 
   useEffect(() => {
     runFoxBreathing();
-    foxBreathInterval.current = setInterval(runFoxBreathing, 180000);
+    foxBreathInterval.current = setInterval(runFoxBreathing, 60000);
     return () => {
       clearFoxBreathing();
     };
@@ -1281,36 +1282,53 @@ export default function LessicoGame() {
   };
 
   // Componente per mostrare risposta corretta e pulsante continua
-  const CorrectAnswerDisplay = ({ correctWord }) => {
+  const AnswerDetailCard = ({ word, isCorrect, onContinue, continueHint = 'o premi Invio' }) => {
+    if (!word) return null;
+    const showCommonErrors = word.commonErrors && `${word.commonErrors}`.trim().toLowerCase() !== 'nessuno';
     return (
-      <div className="mt-6 space-y-4">
-        <div className="p-4 bg-cyan-950/30 border border-cyan-900/50 rounded-xl space-y-2">
-          <p className="text-cyan-400 font-bold text-lg">
-            ✅ La risposta corretta era: {correctWord.term}
-          </p>
-          {correctWord.accent && (
-            <p className="text-slate-400 text-sm">Accento: {correctWord.accent}</p>
-          )}
-          <p className="text-slate-100">{correctWord.definition}</p>
-          {correctWord.etymology && (
-            <p className="text-slate-400 text-sm italic">{correctWord.etymology}</p>
-          )}
-          {(correctWord.frequencyUsage || (correctWord.technical && correctWord.technical.toLowerCase() !== 'comune') || (correctWord.commonErrors && correctWord.commonErrors.toLowerCase() !== 'nessuno')) && (
-            <div className="text-slate-300 text-xs space-y-1">
-              {correctWord.frequencyUsage && <p>Frequenza d'uso: {correctWord.frequencyUsage}</p>}
-              {correctWord.technical && correctWord.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {correctWord.technical}</p>}
-              {correctWord.commonErrors && correctWord.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {correctWord.commonErrors}</p>}
-            </div>
-          )}
-          <ExamplesBlock word={correctWord} className="mt-2" />
+      <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-left space-y-3">
+        <div className={`text-lg font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
+          {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}
         </div>
-        
-        <button
-          onClick={nextWord}
-          className="w-full bg-gradient-to-r from-cyan-900 to-sky-900 hover:from-cyan-800 hover:to-sky-800 text-slate-100 font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
-        >
-          Continua <ArrowRight className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <Check className="w-5 h-5 text-emerald-400" />
+          <span className="text-2xl font-extrabold text-emerald-200">{word.term}</span>
+        </div>
+        <div className="space-y-1">
+          {word.accent && (
+            <p className="text-slate-300"><span className="font-semibold">Accento:</span> <span className="italic text-slate-100">{word.accent}</span></p>
+          )}
+          <p className="text-lg font-semibold text-slate-50">{word.definition}</p>
+          {word.etymology && (
+            <p className="italic text-slate-300">{word.etymology}</p>
+          )}
+        </div>
+        {(word.frequencyUsage || word.technical || showCommonErrors) && (
+          <div className="text-sm text-slate-200 space-y-1">
+            {word.frequencyUsage && (
+              <p><span className="font-semibold">Frequenza d'uso:</span> <span className="text-slate-100">{word.frequencyUsage}</span></p>
+            )}
+            {word.technical && (
+              <p><span className="font-semibold">Linguaggio tecnico:</span> <span className="text-slate-100">{word.technical}</span></p>
+            )}
+            {showCommonErrors && (
+              <p><span className="font-semibold">Errori frequenti:</span> <span className="text-slate-100">{word.commonErrors}</span></p>
+            )}
+          </div>
+        )}
+        <ExamplesBlock word={word} className="text-left" />
+        {onContinue && (
+          <>
+            <button
+              type="button"
+              onClick={onContinue}
+              className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
+            >
+              Continua
+            </button>
+            {continueHint && <p className="text-left text-slate-500 text-xs">{continueHint}</p>}
+          </>
+        )}
       </div>
     );
   };
@@ -1688,10 +1706,16 @@ export default function LessicoGame() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 flex items-center justify-center p-4">
         <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-center border border-slate-700/50">
-          <h2 className="text-2xl font-bold text-slate-100 mb-2">
+          <h2 className="text-2xl font-bold text-slate-100 mb-1">
             {pendingMode === 'speedQuiz' ? modeNames['quiz'] : modeNames[pendingMode]}
           </h2>
-          <p className="text-slate-400 mb-8">Quante domande vuoi?</p>
+          <p className="text-slate-400 mb-8">
+            {pendingMode === 'quiz' || pendingMode === 'speedQuiz'
+              ? 'Quante domande vuoi?'
+              : pendingMode === 'fillBlank'
+                ? 'Quante parole vuoi indovinare?'
+                : 'Quante ne vuoi?'}
+          </p>
           
           {noWords ? (
             <div className="bg-red-900/30 text-red-200 p-4 rounded-xl">
@@ -1718,7 +1742,6 @@ export default function LessicoGame() {
                   disabled={limit === 0}
                 >
                   <span className="text-3xl font-bold text-slate-200">{limit}</span>
-                  <span className="text-slate-400">domande</span>
                 </button>
               ))}
               
@@ -2401,16 +2424,16 @@ export default function LessicoGame() {
           )}
 
           {(isCorrect !== null || waitingForContinue) && (
-            <div className={`text-center mt-6 text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'} space-y-1`}>
-              <div>
-                {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || word).term}
-              </div>
-              <div className="text-sm font-normal text-slate-300">Definizione: {(showCorrectAnswer || word).definition}</div>
-            </div>
-          )}
-          
-          {waitingForContinue && showCorrectAnswer && (
-            <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
+            <AnswerDetailCard
+              word={showCorrectAnswer || word}
+              isCorrect={isCorrect}
+              onContinue={
+                waitingForContinue
+                  ? () => { setWaitingForContinue(false); nextWord(); }
+                  : null
+              }
+              continueHint={waitingForContinue ? 'o premi Invio' : null}
+            />
           )}
           <FoxInline />
         </div>
@@ -2498,36 +2521,16 @@ export default function LessicoGame() {
           </div>
 
           {(isCorrect !== null || waitingForContinue) && (
-            <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-center space-y-2">
-              <div className={`text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
-                {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || word).term}
-              </div>
-              <div className="text-sm font-normal text-slate-200 space-y-1">
-                <div>Definizione: {(showCorrectAnswer || word).definition}</div>
-                {(showCorrectAnswer || word).commonErrors && (
-                  <div>Errori frequenti: {(showCorrectAnswer || word).commonErrors}</div>
-                )}
-                {(showCorrectAnswer || word).frequencyUsage && (
-                  <div>Frequenza: {(showCorrectAnswer || word).frequencyUsage}</div>
-                )}
-                {(showCorrectAnswer || word).technical && (
-                  <div>Linguaggio tecnico: {(showCorrectAnswer || word).technical}</div>
-                )}
-              </div>
-              <ExamplesBlock word={showCorrectAnswer || word} />
-              {waitingForContinue && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => { setWaitingForContinue(false); nextWord(); }}
-                    className="mt-2 bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 transition-colors"
-                  >
-                    Continua
-                  </button>
-                  <p className="text-center text-slate-500 text-xs">O premi Invio</p>
-                </>
-              )}
-            </div>
+            <AnswerDetailCard
+              word={showCorrectAnswer || word}
+              isCorrect={isCorrect}
+              onContinue={
+                waitingForContinue
+                  ? () => { setWaitingForContinue(false); nextWord(); }
+                  : null
+              }
+              continueHint={waitingForContinue ? 'o premi Invio' : null}
+            />
           )}
 
           {!waitingForContinue && (
@@ -2541,7 +2544,7 @@ export default function LessicoGame() {
                 }}
                 className="flex flex-col items-stretch"
               >
-                <div className="flex gap-3 mb-1">
+                <div className="flex gap-3 mb-1 items-start">
                   <input
                     type="text"
                     value={fillBlankInput}
@@ -2553,22 +2556,22 @@ export default function LessicoGame() {
                       }
                     }}
                     placeholder="Scrivi la parola..."
-                    className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
-                    disabled={isCorrect !== null || (hintData && hintData.lost)}
-                    autoFocus
-                  />
-                  <div className="flex flex-col items-center gap-1">
-                    <button
-                      type="submit"
-                      disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
-                      className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Verifica
-                    </button>
-                    <p className="text-center text-slate-500 text-xs">O premi Invio</p>
-                  </div>
+                  className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
+                  disabled={isCorrect !== null || (hintData && hintData.lost)}
+                  autoFocus
+                />
+                <div className="flex flex-col items-start gap-1">
+                  <button
+                    type="submit"
+                    disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
+                    className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Verifica
+                  </button>
+                  <p className="text-left text-slate-500 text-xs">o premi Invio</p>
                 </div>
-              </form>
+              </div>
+            </form>
 
               <button
                 onClick={handleHintClick}
@@ -2671,22 +2674,33 @@ export default function LessicoGame() {
           </div>
 
           {(isCorrect !== null || waitingForContinue) && (
-            <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-center space-y-2">
-              <div className={`text-2xl font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
-                {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}: {(showCorrectAnswer || { term: targetWord || word.term }).term}
+            <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-left space-y-3">
+              <div className={`text-lg font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
+                {isCorrect ? '✅ Corretto' : '❌ Sbagliato'}
               </div>
-              <div className="text-sm font-normal text-slate-200 space-y-1">
-                <div>Definizione: {(showCorrectAnswer || word).definition}</div>
+              <div className="flex items-center gap-2">
+                <Check className="w-5 h-5 text-emerald-400" />
+                <span className="text-2xl font-extrabold text-emerald-200">{(showCorrectAnswer || { term: targetWord || word.term }).term}</span>
+              </div>
+              <div className="text-sm font-normal text-slate-200 space-y-2">
+                {(showCorrectAnswer || word).accent && (
+                  <p><span className="font-semibold">Accento:</span> <span className="italic text-slate-100">{(showCorrectAnswer || word).accent}</span></p>
+                )}
+                <p><span className="font-semibold">Definizione:</span> <span className="text-slate-100">{(showCorrectAnswer || word).definition}</span></p>
+                {(showCorrectAnswer || word).etymology && (
+                  <p><span className="font-semibold">Etimologia:</span> <span className="italic text-slate-300">{(showCorrectAnswer || word).etymology}</span></p>
+                )}
                 {(showCorrectAnswer || word).commonErrors && (
-                  <div>Errori frequenti: {(showCorrectAnswer || word).commonErrors}</div>
+                  <p><span className="font-semibold">Errori frequenti:</span> <span className="text-slate-100">{(showCorrectAnswer || word).commonErrors}</span></p>
                 )}
                 {(showCorrectAnswer || word).frequencyUsage && (
-                  <div>Frequenza: {(showCorrectAnswer || word).frequencyUsage}</div>
+                  <p><span className="font-semibold">Frequenza d'uso:</span> <span className="text-slate-100">{(showCorrectAnswer || word).frequencyUsage}</span></p>
                 )}
                 {(showCorrectAnswer || word).technical && (
-                  <div>Linguaggio tecnico: {(showCorrectAnswer || word).technical}</div>
+                  <p><span className="font-semibold">Linguaggio tecnico:</span> <span className="text-slate-100">{(showCorrectAnswer || word).technical}</span></p>
                 )}
               </div>
+              <ExamplesBlock word={showCorrectAnswer || word} className="text-left" />
               {waitingForContinue && (
                 <>
                   <button
@@ -2696,7 +2710,7 @@ export default function LessicoGame() {
                   >
                     Continua
                   </button>
-                  <p className="text-center text-slate-500 text-xs">O premi Invio</p>
+                  <p className="text-left text-slate-500 text-xs">o premi Invio</p>
                 </>
               )}
             </div>
@@ -2713,7 +2727,7 @@ export default function LessicoGame() {
                 }}
                 className="flex flex-col items-stretch"
               >
-                <div className="flex gap-3 mb-1">
+                <div className="flex gap-3 mb-1 items-start">
                   <input
                     type="text"
                     value={fillBlankInput}
@@ -2725,22 +2739,22 @@ export default function LessicoGame() {
                       }
                     }}
                     placeholder="Scrivi la parola..."
-                    className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
-                    disabled={isCorrect !== null || (hintData && hintData.lost)}
-                    autoFocus
-                  />
-                  <div className="flex flex-col items-center gap-1">
-                    <button
-                      type="submit"
-                      disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
-                      className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Verifica
-                    </button>
-                    <p className="text-center text-slate-500 text-xs">O premi Invio</p>
-                  </div>
+                  className="flex-1 bg-slate-700/30 border border-slate-600/50 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-800"
+                  disabled={isCorrect !== null || (hintData && hintData.lost)}
+                  autoFocus
+                />
+                <div className="flex flex-col items-start gap-1">
+                  <button
+                    type="submit"
+                    disabled={isCorrect !== null || !fillBlankInput.trim() || (hintData && hintData.lost)}
+                    className="bg-cyan-900 hover:bg-cyan-800 text-slate-100 px-6 py-3 rounded-xl transition-colors border border-cyan-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Verifica
+                  </button>
+                  <p className="text-left text-slate-500 text-xs">o premi Invio</p>
                 </div>
-              </form>
+              </div>
+            </form>
 
               <button
                 onClick={handleHintClick}
@@ -2752,10 +2766,6 @@ export default function LessicoGame() {
               </button>
 
             </>
-          )}
-
-          {waitingForContinue && showCorrectAnswer && (
-            <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
           )}
           <FoxInline />
         </div>
