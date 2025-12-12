@@ -272,7 +272,7 @@ export default function LessicoGame() {
   const runFoxBreathing = () => {
     foxBreathTimers.current.forEach((t) => clearTimeout(t));
     foxBreathTimers.current = [];
-    const pulses = [0, 2200, 4400]; // 3 respiri lenti
+    const pulses = [0, 2200]; // 2 respiri lenti
     pulses.forEach((delay) => {
       const on = setTimeout(() => {
         setFoxAnimSize('small');
@@ -1382,14 +1382,14 @@ export default function LessicoGame() {
         <p className="text-slate-400 mb-5">Impara parole nuove giocando!</p>
         
         <div className="space-y-2">
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-3">
             <p className="text-slate-200 font-normal text-base">Carica il tuo CSV</p>
             <button
               onClick={() => setShowUploadInfo(true)}
-              className="w-7 h-7 rounded-full border border-slate-600 text-slate-300 text-sm flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
-              aria-label="Info formato CSV"
+              className="text-cyan-200 text-sm underline underline-offset-4"
+              aria-label="Formato CSV e istruzioni"
             >
-              i
+              Formato
             </button>
           </div>
           <label className="block cursor-pointer group">
@@ -1526,7 +1526,7 @@ export default function LessicoGame() {
 
         {menuTab === 'consultation' ? (
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
-            <p className="text-slate-400 text-sm mb-3">Scegli la vista di studio</p>
+            <p className="text-slate-400 text-sm mb-3">Scegli la modalità di studio</p>
             <div className="grid gap-2">
               {[
                 {
@@ -1970,21 +1970,16 @@ export default function LessicoGame() {
           </div>
 
           <div className="space-y-3">
+            <p className="text-slate-300 text-sm">Scegli quante parole includere: puoi prendere tutto l’elenco o una tranche percentuale.</p>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-slate-200">
                   Selezionate: <span className="font-semibold text-cyan-300">{filteredPool.length}</span>
                 </span>
-                <button
-                  onClick={() => setShowSelectionInfo(true)}
-                  className="text-slate-200 underline decoration-dotted underline-offset-4 hover:text-cyan-300 text-sm"
-                  aria-label="Istruzioni selezione parole"
-                >
-                  Istruzioni
-                </button>
               </div>
             </div>
               <div className="grid gap-3">
+                <p className="text-slate-400 text-xs px-1">Tranche percentuale: scegli la fetta di parole da usare (se non selezioni, usi tutte).</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/** Calcolo disponibilità tranche */}
                   {(() => {
@@ -2036,7 +2031,7 @@ export default function LessicoGame() {
                 )}
               </div>
 
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Attiva solo le parole che hai segnato “Ripasso” in questa sessione.</div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Ripasso: attiva solo le parole che hai segnato “Ripasso” in questa sessione (esclude quelle già marcate nel CSV, se non le hai aggiunte ora).</div>
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner mt-0">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Ripasso</span>
@@ -3211,24 +3206,22 @@ export default function LessicoGame() {
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-2xl font-bold">Come preparare il CSV</h2>
               <button
-                onClick={() => setShowUploadInfo(false)}
-                className="text-slate-400 hover:text-slate-200 text-xl"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-3 text-sm leading-relaxed text-slate-200">
-              <ul className="list-disc list-inside space-y-2 text-slate-200">
-                <li>⬇️ Scarica il modello CSV già pronto: ha intestazione, valori preimpostati e una riga di esempio.</li>
-                <li>✍️ Mantieni l’ordine delle 12 colonne: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</li>
-                <li>✅ Non è obbligatorio compilare tutto: indispensabili solo “Termine” e “Definizione”; le altre colonne possono restare vuote.</li>
-                <li>💾 Esporta/salva come CSV UTF-8 con separatore virgola (no “;” o tab).</li>
-                <li>📅 Formati: Data in GG-MM-AA o vuota; APPRESO = SI/NO; Errori = descrizione o “NO”.</li>
-              </ul>
-              <p className="text-slate-400">Suggerimento: da Google Sheet/Excel/LibreOffice/Numbers scegli “Esporta/Salva come CSV” e non modificare l’intestazione.</p>
-            </div>
-          </div>
+            onClick={() => setShowUploadInfo(false)}
+            className="text-slate-400 text-xl"
+          >
+            ✕
+          </button>
         </div>
+        <div className="space-y-2 text-sm leading-relaxed text-slate-200">
+          <p>Scarica il modello CSV già pronto: ha intestazione, valori preimpostati e una riga di esempio.</p>
+          <p>Mantieni l’ordine delle 12 colonne: Data di inserimento, Termine, Accento, Definizione, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO.</p>
+          <p>Non è obbligatorio compilare tutto: indispensabili solo “Termine” e “Definizione”; le altre colonne possono restare vuote.</p>
+          <p>Esporta/salva come CSV UTF-8 con separatore virgola (no “;” o tab).</p>
+          <p>Formati: Data in GG-MM-AA o vuota; APPRESO = SI/NO/RIPASSO; Errori = descrizione o “NO”.</p>
+          <p className="text-slate-400">Suggerimento: da Google Sheet/Excel/LibreOffice/Numbers scegli “Esporta/Salva come CSV” e non modificare l’intestazione.</p>
+        </div>
+      </div>
+    </div>
       )}
       {showSelectionPanel && <SelectionPanel />}
       {showInstructions && <InstructionsModal />}
