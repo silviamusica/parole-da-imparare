@@ -231,18 +231,18 @@ export default function LessicoGame() {
     setTimeout(() => setAddedFeedback(null), 900);
   };
 
-  const showFoxFeedback = (correct) => {
-    const variant = correct ? 'feedback-ok' : 'feedback-wrong';
-    setFoxVariant(variant);
+  // Effetti sonori semplici
+  const playSound = () => {};
+  const playCuteSound = () => {};
+
+  const showFoxOpenEyes = () => {
+    setFoxVariant('feedback-ok');
+    setFoxAnim(false);
     if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
     foxAnimTimeout.current = setTimeout(() => {
       setFoxVariant('default');
     }, 2000);
   };
-
-  // Effetti sonori semplici
-  const playSound = () => {};
-  const playCuteSound = () => {};
 
   const handleFoxClick = () => {
     setFoxAnim(true);
@@ -992,7 +992,6 @@ export default function LessicoGame() {
   // Gestione risposta corretta
   const handleCorrectAnswer = () => {
     setIsCorrect(true);
-    showFoxFeedback(true);
     setStreak(streak + 1);
     setMaxStreak(Math.max(maxStreak, streak + 1));
     setGameStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
@@ -1015,7 +1014,6 @@ export default function LessicoGame() {
     setStreak(0);
     setLives(Math.max(0, lives - 1));
     setGameStats(prev => ({ ...prev, wrong: prev.wrong + 1, total: prev.total + 1 }));
-    showFoxFeedback(false);
     setIsTimerRunning(false);
     playSound('bad');
     
@@ -1282,7 +1280,6 @@ export default function LessicoGame() {
 
   // Componente per mostrare risposta corretta e pulsante continua
   const CorrectAnswerDisplay = ({ correctWord }) => {
-    showFoxFeedback(true);
     return (
       <div className="mt-6 space-y-4">
         <div className="p-4 bg-cyan-950/30 border border-cyan-900/50 rounded-xl space-y-2">
@@ -2287,7 +2284,11 @@ export default function LessicoGame() {
           </div>
 
           <div 
-            onClick={() => { setShowAnswer(!showAnswer); if (!showAnswer) showFoxFeedback(true); }}
+            onClick={() => {
+              const next = !showAnswer;
+              setShowAnswer(next);
+              if (next) showFoxOpenEyes();
+            }}
             className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 min-h-[300px] flex flex-col justify-center cursor-pointer border border-slate-700/50 transform transition-all hover:scale-105"
           >
             {!showAnswer ? (
@@ -3136,6 +3137,7 @@ export default function LessicoGame() {
 
     const toggleFlip = (term) => {
       setConsultFlipped(prev => ({ ...prev, [term]: !prev[term] }));
+      showFoxOpenEyes();
     };
     useEffect(() => {
       if (!showDefinitionFirst || !pool.length) return;
