@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle, Download } from 'lucide-react';
 import LogoVolpinaChiusi from '../volpina-occhi-chiusi.png';
 import LogoVolpinaOcchiAperti from '../volpina-occhi-aperti.png';
@@ -26,6 +26,20 @@ const normalizeDate = (value) => {
     return `${dd}-${mm}-${yy}`;
   }
   return val;
+};
+
+// Normalizza valori SI/NO indipendentemente da maiuscole/minuscole e accenti
+const normalizeYesNo = (value) => {
+  if (value === undefined || value === null) return null;
+  const base = `${value}`.trim();
+  if (!base) return null;
+  const folded = base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+  if (folded === 'SI') return 'SI';
+  if (folded === 'NO') return 'NO';
+  return null;
 };
 
 // Parser CSV flessibile: supporta vecchio schema (parola, accento, definizione, etimologia, esempio, data, errori)
@@ -86,10 +100,11 @@ const parseCSV = (text) => {
     const insertedAtRaw = getField(row, 0, 'data di inserimento', 'data_inserimento', 'data');
     const insertedAt = normalizeDate(insertedAtRaw);
     const errorRaw = getField(row, 10, 'errori', 'errorflag', 'error');
-    const upperErr = (errorRaw || '').trim().toUpperCase();
-    const errorFlag = upperErr === 'SI' ? 'SI' : 'NO';
-    const commonErrors = upperErr === 'SI' || upperErr === 'NO' ? '' : (errorRaw || '');
-    const learned = (getField(row, 11, 'appreso') || '').trim().toUpperCase() === 'SI';
+    const normalizedErrorFlag = normalizeYesNo(errorRaw);
+    const errorFlag = normalizedErrorFlag === 'SI' ? 'SI' : 'NO';
+    const commonErrors = normalizedErrorFlag ? '' : (errorRaw || '');
+    const learned = normalizeYesNo(getField(row, 11, 'appreso')) === 'SI';
+    const appreso = learned ? 'SI' : 'NO';
 
     if (term && definition) {
       const examples = [ex1, ex2, ex3].filter(Boolean).join(' • ');
@@ -109,6 +124,7 @@ const parseCSV = (text) => {
         insertedAt,
         errorFlag,
         mastery: 0,
+        appreso,
         lastSeen: null
       });
     }
@@ -168,6 +184,10 @@ export default function LessicoGame() {
   const [consultOpenLetter, setConsultOpenLetter] = useState(null);
   const [consultFlashOpenLetter, setConsultFlashOpenLetter] = useState(null);
   const [selectionWarning, setSelectionWarning] = useState(null);
+  const [reviewView, setReviewView] = useState('review'); // review | played | learned
+  const [playedWords, setPlayedWords] = useState([]);
+  const reviewListRef = useRef(null);
+  const reviewScrollPos = useRef(0);
   const selectionTimeoutRef = useRef(null);
   const triggerSelectionWarning = (message, duration = 5000) => {
     if (selectionTimeoutRef.current) clearTimeout(selectionTimeoutRef.current);
@@ -498,14 +518,16 @@ export default function LessicoGame() {
     return options;
   }, []);
 
-  // Filtra le parole in base alla selezione del menu (tutte, tranche 10%, solo sbagliate, solo errori CSV)
+  // Filtra le parole in base alla selezione del menu (tutte, tranche, solo “Da rivedere”, filtri appreso/recenti)
   const getFilteredWords = useCallback(() => {
     const reviewTerms = new Set(wordsToReview.map(w => w.term));
     let base = onlyWrongSubset ? words.filter(w => reviewTerms.has(w.term)) : words;
     if (learnedFilter === 'yes') {
-      base = base.filter(w => w.learned);
+      base = base.filter(w => w.appreso === 'SI');
     } else if (learnedFilter === 'no') {
-      base = base.filter(w => !w.learned);
+      base = base.filter(w => w.appreso === 'NO');
+    } else if (learnedFilter === 'ripasso') {
+      base = base.filter(w => w.appreso === 'RIPASSO');
     }
 
     if (subsetMode === 'chunk') {
@@ -842,6 +864,53 @@ export default function LessicoGame() {
     }
   };
 
+  const addPlayedWord = useCallback((word, isCorrect = false) => {
+    if (!word || !word.term) return;
+    setPlayedWords(prev => {
+      const filtered = prev.filter(w => w.term !== word.term);
+      if (!isCorrect) return filtered;
+      return [...filtered, { ...word, source: 'played', correct: true }];
+    });
+  }, []);
+
+  const preserveReviewScroll = (action) => {
+    const el = reviewListRef.current;
+    const top = el?.scrollTop ?? null;
+    action();
+    if (top !== null) {
+      reviewScrollPos.current = top;
+      requestAnimationFrame(() => {
+        if (reviewListRef.current) {
+          reviewListRef.current.scrollTop = reviewScrollPos.current;
+        }
+      });
+    }
+  };
+
+  const setAppreso = useCallback((term, status) => {
+    if (!term) return;
+    preserveReviewScroll(() => {
+      setWords(prev => prev.map(w => w.term === term ? { ...w, learned: status === 'SI', appreso: status } : w));
+      setWordsToReview(prev => {
+        if (status === 'RIPASSO') {
+          if (prev.some(w => w.term === term)) return prev;
+          const baseWord = (words.find(w => w.term === term) || playedWords.find(w => w.term === term));
+          if (!baseWord) return prev;
+          const enriched = { ...baseWord, errorFlag: 'SI', source: baseWord.source || 'manual', learned: false, appreso: 'RIPASSO' };
+          return [...prev.filter(w => w.term !== term), enriched];
+        }
+        return prev.filter(w => w.term !== term);
+      });
+      if (status !== 'RIPASSO') {
+        setPlayedWords(prev => prev.filter(w => w.term !== term));
+      }
+    });
+  }, [words, playedWords]);
+
+  const markWordAsLearned = useCallback((term) => setAppreso(term, 'SI'), [setAppreso]);
+  const markWordAsToReview = useCallback((term) => setAppreso(term, 'RIPASSO'), [setAppreso]);
+  const markWordAsNotLearned = useCallback((term) => setAppreso(term, 'NO'), [setAppreso]);
+
   // Permetti di avanzare con Enter quando il feedback è visibile (waitingForContinue)
   useEffect(() => {
     const handler = (e) => {
@@ -855,6 +924,17 @@ export default function LessicoGame() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [waitingForContinue, nextWord]);
+
+  // Traccia le parole viste nei giochi
+  useEffect(() => {
+    if (!gameMode || ['results', 'consultation', 'consultationFlashcard', null].includes(gameMode)) return;
+    const current = shuffledWords[currentIndex];
+    if (current && current.term) {
+      // Traccia solo l'ultimo stato: se corretta, rimane; se sbagliata, viene rimossa
+      const isCurrCorrect = isCorrect === true;
+      addPlayedWord(current, isCurrCorrect);
+    }
+  }, [currentIndex, gameMode, shuffledWords, addPlayedWord, isCorrect]);
 
   // Gestione risposta corretta
   const handleCorrectAnswer = () => {
@@ -894,10 +974,11 @@ export default function LessicoGame() {
     setWordsToReview(prev => {
       const exists = prev.some(w => w.term === correctWord.term);
       if (!exists) {
-        return [...prev, { ...correctWord, wrongAnswer: selectedWrongWord?.term || null, errorFlag: 'SI' }];
+        return [...prev, { ...correctWord, wrongAnswer: selectedWrongWord?.term || null, errorFlag: 'SI', source: 'game', learned: false, appreso: 'RIPASSO' }];
       }
       return prev;
     });
+    setWords(prev => prev.map(w => w.term === correctWord.term ? { ...w, appreso: 'RIPASSO', learned: false } : w));
 
     // In modalità che devono avanzare subito (es. flashcard), passa oltre senza fermarsi
     if (autoAdvance) {
@@ -991,7 +1072,7 @@ export default function LessicoGame() {
       const header = "Data di inserimento,Termine,Accento,Definizione,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO\n";
       const reviewTerms = new Set(wordsToReview.map(w => w.term));
       const rows = words.map(w => {
-        const appreso = w.learned ? 'SI' : 'NO';
+        const appreso = reviewTerms.has(w.term) ? 'RIPASSO' : (w.learned ? 'SI' : 'NO');
         const errorValue = reviewTerms.has(w.term) ? 'Da rivedere' : (w.commonErrors || 'NO');
         return `"${normalizeDate(w.insertedAt) || ''}","${w.term}","${w.accent || ''}","${w.definition}","${w.etymology || ''}","${w.example1 || ''}","${w.example2 || ''}","${w.example3 || ''}","${w.frequencyUsage || ''}","${w.technical || ''}","${errorValue}","${appreso}"`;
       }).join('\n');
@@ -1011,7 +1092,7 @@ export default function LessicoGame() {
         "Frequenza d'uso (Bassa/Media/Alta)",
         "Linguaggio tecnico (Comune/Medico/Legale...)", 
         "Errori: descrizione (es. 'spesso confuso con...') oppure NO",
-        'APPRESO: SI/NO'
+        'APPRESO: SI/NO/RIPASSO'
       ].map(v => `"${v.replace(/"/g, '""')}"`).join(',');
 
       const sample = [
@@ -1155,7 +1236,7 @@ export default function LessicoGame() {
         
         <button
           onClick={nextWord}
-          className="w-full bg-gradient-to-r from-cyan-900 to-sky-900 hover:from-cyan-800 hover:to-sky-800 text-slate-100 font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 border border-cyan-800/50"
+          className="w-full bg-gradient-to-r from-cyan-900 to-sky-900 hover:from-cyan-800 hover:to-sky-800 text-slate-100 font-bold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
         >
           Continua <ArrowRight className="w-5 h-5" />
         </button>
@@ -1191,11 +1272,11 @@ export default function LessicoGame() {
           </button>
         </div>
         <div className="space-y-3 text-sm leading-relaxed text-slate-200">
-          <p>📊 <strong>Tranche</strong>: scegli una fetta del database per lettera (10/20/33/50%). Es: 10% = primo 10% di ogni lettera; puoi scegliere 1ª, 2ª… fetta per studiare a blocchi.</p>
-          <p>🎯 <strong>Solo sbagliate</strong>: usa solo le parole che hai aggiunto a “Da rivedere” (errori in gioco/studio).</p>
-          <p>📗 <strong>Appreso</strong>: scegli se vedere solo le parole già apprese (APPRESO=SI) o solo quelle da imparare (APPRESO=NO) in base al CSV.</p>
+          <p>📊 <strong>Tranche</strong>: scegli una fetta del database per lettera (10/20/33/50%). 10% = primo 10% di ogni lettera; puoi studiare a blocchi selezionando 1ª, 2ª… fetta.</p>
+          <p>🎯 <strong>Da rivedere</strong>: attiva solo le parole che hai segnato “Da rivedere” in questa sessione.</p>
+          <p>📗 <strong>Stadio di apprendimento</strong>: filtra per APPRESO = SI (apprese), NO (non apprese), RIPASSO (da ripassare) o tutte.</p>
           <p>⏱️ <strong>Ultime inserite</strong>: limita alle parole più recenti (per numero) oppure per tempo: ultime 24h, 7 giorni, ultimo mese o da una data.</p>
-          <p>➕ <strong>Combinazioni</strong>: prima si applica la tranche, poi le spunte restringono ulteriormente il set.</p>
+          <p>➕ <strong>Combinazioni</strong>: prima si applicano tranche/da rivedere/stadio, poi gli altri filtri restringono ulteriormente.</p>
         </div>
       </div>
     </div>
@@ -1220,10 +1301,10 @@ export default function LessicoGame() {
           </button>
         </div>
         <div className="space-y-3 text-sm leading-relaxed text-slate-200">
-          <p>Qui finiscono le parole sbagliate in gioco o quelle che hai segnato nello studio. Usa “Svuota lista” per ripulire quando le hai imparate.</p>
+          <p>Qui gestisci tre liste: “Ripasso” (APPRESO=RIPASSO), “Risposte corrette” (solo le ultime risposte giuste) e “Apprese” (APPRESO=SI). Usa “Svuota lista” per ripulire i ripassi quando hai finito.</p>
           <p>Puoi scaricare due formati:</p>
           <p><strong>TXT</strong>: solo elenco delle parole da rivedere/errori.</p>
-          <p><strong>CSV completo con errori/da rivedere</strong>: tutte le parole del database con la colonna “Errori” già compilata (SI per le parole da rivedere). Puoi ricaricarlo per ritrovare gli errori marcati e continuare a tracciare i progressi.</p>
+          <p><strong>CSV completo</strong>: tutte le parole del database con “Errori” e “APPRESO” valorizzati (RIPASSO per le parole in “Da rivedere”, SI per le apprese, NO per il resto). Puoi ricaricarlo per ritrovare gli stati.</p>
         </div>
       </div>
     </div>
@@ -1293,14 +1374,14 @@ export default function LessicoGame() {
           <p className="text-slate-200 font-normal text-base">Scarica il modello CSV da personalizzare, oppure prova subito la demo.</p>
           <button
             onClick={() => downloadFile('csv_empty')}
-            className="w-full bg-orange-500 hover:bg-orange-400 text-white font-semibold px-4 py-3 rounded-xl border border-orange-300 transition-colors shadow-[0_10px_30px_-12px_rgba(249,115,22,0.7)] flex items-center justify-center gap-2"
+            className="w-full bg-orange-500 hover:bg-orange-400 text-white font-semibold px-4 py-3 rounded-xl transition-colors shadow-[0_10px_30px_-12px_rgba(249,115,22,0.7)] flex items-center justify-center gap-2"
           >
             <Download className="w-5 h-5" aria-hidden="true" />
             <span>Scarica il modello</span>
           </button>
           <button
             onClick={loadDemoWords}
-            className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold px-4 py-3 rounded-xl border border-amber-200 transition-colors shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)] flex items-center justify-center gap-2"
+            className="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold px-4 py-3 rounded-xl transition-colors shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)] flex items-center justify-center gap-2"
           >
             <Sparkles className="w-5 h-5" aria-hidden="true" />
             <span>Prova demo (50 parole)</span>
@@ -1361,17 +1442,17 @@ export default function LessicoGame() {
                 Disponibili: {filteredPool.length}
                 {learnedFilter !== 'all' && (
                   <span className="text-xs text-cyan-300 ml-2">
-                    ({learnedFilter === 'yes' ? 'solo apprese' : 'solo da apprendere'})
+                    ({learnedFilter === 'yes' ? 'solo apprese' : learnedFilter === 'ripasso' ? 'solo ripasso' : 'solo da apprendere'})
                   </span>
                 )}
                 {onlyWrongSubset && (
-                  <span className="text-xs text-orange-300 ml-2">(solo sbagliate)</span>
+                  <span className="text-xs text-orange-300 ml-2">(solo “Da rivedere”)</span>
                 )}
               </p>
             </div>
             <button
               onClick={() => setShowSelectionPanel(true)}
-              className="bg-orange-300 text-slate-900 px-4 py-2 rounded-xl font-semibold hover:opacity-85 transition border border-orange-400"
+              className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-4 py-2 rounded-xl font-semibold transition shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]"
             >
               Apri selezione
             </button>
@@ -1382,13 +1463,13 @@ export default function LessicoGame() {
           <div className="flex gap-2 p-1 bg-slate-900/60 rounded-2xl border border-slate-700/50">
               <button
                 onClick={() => setMenuTab('consultation')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'consultation' ? 'bg-orange-300 text-slate-900 shadow-lg scale-[1.02]' : 'text-slate-300 hover:text-orange-200 border border-transparent hover:border-orange-300'}`}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'consultation' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02]' : 'text-slate-300 hover:text-orange-200'}`}
             >
               Studio
             </button>
             <button
               onClick={() => setMenuTab('games')}
-              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'games' ? 'bg-orange-300 text-slate-900 shadow-lg scale-[1.02]' : 'text-slate-300 hover:text-orange-200 border border-transparent hover:border-orange-300'}`}
+              className={`flex-1 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${menuTab === 'games' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)] scale-[1.02]' : 'text-slate-300 hover:text-orange-200'}`}
             >
               Giochi
             </button>
@@ -1411,7 +1492,7 @@ export default function LessicoGame() {
                 </div>
                 <button
                   onClick={() => selectMode('consultation')}
-                  className="bg-cyan-900 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 hover:bg-cyan-800 text-sm"
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-4 py-2 rounded-xl text-sm font-semibold shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)]"
                 >
                   Apri
                 </button>
@@ -1432,7 +1513,7 @@ export default function LessicoGame() {
                 </div>
                 <button
                   onClick={() => selectMode('consultationFlashcard')}
-                  className="bg-cyan-900 text-slate-100 px-4 py-2 rounded-xl border border-cyan-800/60 hover:bg-cyan-800 text-sm"
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-4 py-2 rounded-xl text-sm font-semibold shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)]"
                 >
                   Apri
                 </button>
@@ -1555,7 +1636,7 @@ export default function LessicoGame() {
           <p className="text-slate-400 mb-8">Quante domande vuoi?</p>
           
           {noWords ? (
-            <div className="bg-red-900/30 border border-red-800/50 text-red-200 p-4 rounded-xl">
+            <div className="bg-red-900/30 text-red-200 p-4 rounded-xl">
               Nessuna parola disponibile con questo filtro. Torna indietro e verifica “Solo sbagliate”/tranche.
             </div>
           ) : (
@@ -1607,110 +1688,254 @@ export default function LessicoGame() {
   };
 
   // Pannello parole da rivedere
-  const ReviewPanel = () => (
-    <div
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto"
-      onClick={() => setShowReviewPanel(false)}
-    >
-      <div className="min-h-screen flex items-center justify-center p-4 py-8">
-        <div
-          className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl max-w-2xl w-full border border-slate-700/50 flex flex-col max-h-[92vh]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-5 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold text-slate-100">📚 Parole da rivedere</h2>
+  const ReviewPanel = () => {
+    const isReviewList = reviewView === 'review';
+    const isCorrectList = reviewView === 'played';
+    const isLearnedList = reviewView === 'learned';
+
+    let activeList = [];
+    if (isReviewList) {
+      activeList = wordsToReview;
+    } else if (isCorrectList) {
+      activeList = playedWords;
+    } else if (isLearnedList) {
+      activeList = words.filter(w => w.learned);
+    }
+
+    const emptyMessage = isReviewList
+      ? 'Nessuna parola da rivedere ancora.'
+      : isCorrectList
+      ? 'Nessuna risposta corretta salvata in questa sessione.'
+      : 'Nessuna parola segnata come appresa.';
+
+    useLayoutEffect(() => {
+      if (reviewListRef.current) {
+        reviewListRef.current.scrollTop = reviewScrollPos.current;
+      }
+    }, [reviewView, activeList.length]);
+
+    const handleRemove = (idx) => {
+      preserveReviewScroll(() => {
+        if (isReviewList) {
+          const term = activeList[idx]?.term;
+          setWordsToReview(prev => prev.filter((_, i) => i !== idx));
+          if (term) {
+            updateLearned(term, false);
+          }
+        } else if (isCorrectList) {
+          setPlayedWords(prev => prev.filter((_, i) => i !== idx));
+        } else if (isLearnedList) {
+          const term = activeList[idx]?.term;
+          if (term) {
+            updateLearned(term, false);
+          }
+        }
+      });
+    };
+
+    return (
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto"
+        onClick={() => setShowReviewPanel(false)}
+      >
+        <div className="min-h-screen flex items-center justify-center p-4 py-8">
+          <div
+            className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl max-w-2xl w-full border border-slate-700/50 flex flex-col max-h-[92vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-slate-700/50 flex items-center justify-between flex-shrink-0 gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-slate-100">📚 Parole da rivedere</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowReviewHelp(true)}
+                  className="w-5 h-5 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
+                  aria-label="Info Parole da rivedere"
+                >
+                  i
+                </button>
+              </div>
+              <p className="text-slate-400 text-sm">{activeList.length} parole</p>
               <button
-                type="button"
-                onClick={() => setShowReviewHelp(true)}
-                className="w-5 h-5 rounded-full border border-slate-600 text-slate-300 text-xs flex items-center justify-center hover:text-cyan-300 hover:border-cyan-500"
-                aria-label="Info Parole da rivedere"
+                onClick={() => setShowReviewPanel(false)}
+                className="text-slate-500 hover:text-slate-300 text-2xl"
               >
-                i
+                ✕
               </button>
             </div>
-            <p className="text-slate-400 text-sm">{wordsToReview.length} parole</p>
-            <button
-              onClick={() => setShowReviewPanel(false)}
-              className="text-slate-500 hover:text-slate-300 text-2xl"
-            >
-              ✕
-            </button>
-          </div>
-          
-          {wordsToReview.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">
-              Nessuna parola da rivedere ancora.
-            </div>
-          ) : (
-            <>
-              <div className="p-4 overflow-y-auto flex-1 min-h-0">
-                {wordsToReview.map((word, idx) => (
-                  <div key={idx} className="bg-slate-800/30 rounded-xl p-4 mb-3 border border-slate-700/50">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-slate-100">{word.term}</h3>
-                        {word.accent && (
-                          <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => setWordsToReview(prev => prev.filter((_, i) => i !== idx))}
-                        className="text-red-400 hover:text-red-300 text-sm flex-shrink-0"
-                      >
-                        Rimuovi
-                      </button>
-                    </div>
-                    <p className="text-slate-300 mt-1">{word.definition}</p>
-                    {word.etymology && (
-                      <p className="text-slate-400 text-sm italic mt-2">{word.etymology}</p>
-                    )}
-                    <ExamplesBlock word={word} />
-                  </div>
-                ))}
-              </div>
-              
-              <div className="p-4 border-t border-slate-700/50 space-y-3 flex-shrink-0 bg-slate-900/50">
-                {copyFeedback && (
-                  <div className="text-center text-cyan-400 font-medium mb-2">
-                    {copyFeedback}
-                  </div>
-                )}
 
-                <div className="flex items-center gap-3 flex-wrap">
-                  <label className="text-slate-400 text-sm flex-shrink-0">Scarica:</label>
-                  <select
-                    value={exportFormat}
-                    onChange={(e) => setExportFormat(e.target.value)}
-                    className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
-                  >
-                    <option value="text">TXT (parole da rivedere/errori)</option>
-                    <option value="csv">CSV completo con errori/da rivedere</option>
-                  </select>
-                  <button
-                    onClick={() => downloadFile(exportFormat)}
-                    className="bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
-                  >
-                    Scarica
-                  </button>
-                </div>
-                <p className="text-slate-500 text-xs">Suggerimento: rinomina il file aggiungendo la data di oggi per ricordare quale versione stai usando quando lo ricarichi.</p>
-                
+            <div className="px-4 pt-4">
+              <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={() => setWordsToReview([])}
-                  className="w-full bg-red-950/30 hover:bg-red-950/50 text-red-400 py-3 rounded-xl transition-colors border border-red-900/50 text-sm"
+                  onClick={() => setReviewView('review')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${reviewView === 'review' ? 'bg-orange-500 text-white shadow-[0_6px_18px_-12px_rgba(249,115,22,0.45)]' : 'bg-slate-800 text-slate-200 hover:text-orange-100'}`}
                 >
-                  🗑️ Svuota lista
+                  Ripasso ({wordsToReview.length})
                 </button>
-
-                <FoxInline />
+                <button
+                  onClick={() => setReviewView('played')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${reviewView === 'played' ? 'bg-amber-400 text-slate-900 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'bg-slate-800 text-slate-200 hover:text-orange-100'}`}
+                >
+                  Risposte corrette ({playedWords.length})
+                </button>
+                <button
+                  onClick={() => setReviewView('learned')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${reviewView === 'learned' ? 'bg-emerald-600 text-emerald-50 shadow-[0_6px_18px_-12px_rgba(16,185,129,0.45)]' : 'bg-slate-800 text-slate-200 hover:text-emerald-100'}`}
+                >
+                  Apprese ({words.filter(w => w.learned).length})
+                </button>
               </div>
-            </>
-          )}
+            </div>
+            
+            {activeList.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">
+                {emptyMessage}
+              </div>
+            ) : (
+              <>
+                <div
+                  ref={reviewListRef}
+                  className="p-4 overflow-y-auto flex-1 min-h-0"
+                  onScroll={() => {
+                    if (reviewListRef.current) {
+                      reviewScrollPos.current = reviewListRef.current.scrollTop;
+                    }
+                  }}
+                >
+                  {activeList.map((word, idx) => {
+                    const isLearned = !!word.learned;
+                    const inReview = wordsToReview.some(w => w.term === word.term);
+                    return (
+                      <div key={word.term} className="bg-slate-800/30 rounded-xl p-4 mb-3 border border-slate-700/50">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-lg font-bold text-slate-100">{word.term}</h3>
+                            </div>
+                            {word.accent && (
+                              <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
+                            )}
+                            {word.source && (
+                              <p className="text-slate-500 text-xs mt-1 capitalize">Origine: {word.source === 'game' ? 'Errore/gioco' : 'Aggiunta manuale'}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2 items-end">
+                            {isReviewList && (
+                              <>
+                                <button
+                                  onClick={() => markWordAsLearned(word.term)}
+                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-emerald-600 text-emerald-50 hover:bg-emerald-500"
+                                >
+                                  Appresa
+                                </button>
+                                <button
+                                  onClick={() => markWordAsToReview(word.term)}
+                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600"
+                                >
+                                  Ripasso
+                                </button>
+                                <button
+                                  onClick={() => handleRemove(idx)}
+                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-red-600 text-white hover:bg-red-500"
+                                >
+                                  Appresa: NO
+                                </button>
+                              </>
+                            )}
+                            {isCorrectList && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    preserveReviewScroll(() => {
+                                      markWordAsToReview(word.term);
+                                      setPlayedWords(prev => prev.filter(w => w.term !== word.term));
+                                    });
+                                  }}
+                                  className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-400"
+                                >
+                                  Aggiungi a Ripasso
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    preserveReviewScroll(() => {
+                                      markWordAsLearned(word.term);
+                                      setPlayedWords(prev => prev.filter(w => w.term !== word.term));
+                                    });
+                                  }}
+                                  className="text-xs px-3 py-1 rounded-full transition font-semibold bg-emerald-600 text-emerald-50 hover:bg-emerald-500"
+                                >
+                                  Appresa
+                                </button>
+                              </>
+                            )}
+                            {isLearnedList && (
+                              <button
+                                onClick={() => {
+                                  preserveReviewScroll(() => {
+                                    markWordAsToReview(word.term);
+                                  });
+                                }}
+                                className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-400"
+                              >
+                                Aggiungi a Ripasso
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-slate-300 mt-2">{word.definition}</p>
+                        {word.etymology && (
+                          <p className="text-slate-400 text-sm italic mt-2">{word.etymology}</p>
+                        )}
+                        <ExamplesBlock word={word} />
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="p-4 border-t border-slate-700/50 space-y-3 flex-shrink-0 bg-slate-900/50">
+                  {copyFeedback && (
+                    <div className="text-center text-cyan-400 font-medium mb-2">
+                      {copyFeedback}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <label className="text-slate-400 text-sm flex-shrink-0">Scarica:</label>
+                    <select
+                      value={exportFormat}
+                      onChange={(e) => setExportFormat(e.target.value)}
+                      className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
+                    >
+                      <option value="text">TXT (parole da rivedere/errori)</option>
+                      <option value="csv">CSV completo con errori/da rivedere</option>
+                    </select>
+                    <button
+                      onClick={() => downloadFile(exportFormat)}
+                      className="bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
+                    >
+                      Scarica
+                    </button>
+                  </div>
+                  <p className="text-slate-500 text-xs">Suggerimento: rinomina il file aggiungendo la data di oggi per ricordare quale versione stai usando quando lo ricarichi.</p>
+                  
+                  {isReviewList && (
+                    <button
+                      onClick={() => setWordsToReview([])}
+                      className="w-full bg-red-950/30 hover:bg-red-950/50 text-red-400 py-3 rounded-xl transition-colors border border-red-900/50 text-sm"
+                    >
+                      🗑️ Svuota lista
+                    </button>
+                  )}
+
+                  <FoxInline />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const SelectionPanel = () => (
     <div
@@ -1801,7 +2026,8 @@ export default function LessicoGame() {
                 )}
               </div>
 
-              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner">
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Attiva solo le parole che hai segnato “Da rivedere” in questa sessione.</div>
+              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner mt-0">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Da rivedere</span>
                   <span className="text-xs text-slate-400 ml-1">({wordsToReview.length})</span>
@@ -1814,9 +2040,10 @@ export default function LessicoGame() {
                 />
               </label>
 
-              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner">
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Filtra per stadio di apprendimento.</div>
+              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner mt-0">
                 <div className="flex items-center gap-2 text-sm leading-tight">
-                  <span>Appreso</span>
+                  <span>Stadio di apprendimento</span>
                 </div>
                 <select
                   value={learnedFilter}
@@ -1824,38 +2051,32 @@ export default function LessicoGame() {
                   className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm"
                 >
                   <option value="all">Tutti</option>
-                  <option value="yes">Solo appresi (SI)</option>
-                  <option value="no">Solo non appresi (NO)</option>
+                  <option value="yes">Apprese (SI)</option>
+                  <option value="no">Non apprese (NO)</option>
+                  <option value="ripasso">Ripasso (RIPASSO)</option>
                 </select>
               </div>
 
-              <div className="flex flex-col gap-2 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner">
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 text-sm leading-tight">
-                    <input
-                      type="checkbox"
-                      checked={useRecent}
-                      onChange={(e) => setUseRecent(e.target.checked)}
-                      className="accent-orange-500 h-4 w-4"
-                    />
-                    <span>Ultime inserite</span>
-                  </label>
-                  {useRecent && (
-                    <button
-                      onClick={() => { setUseRecent(false); setRecentMode('count'); setRecentSince(''); }}
-                      className="text-xs text-orange-200 hover:text-orange-100"
-                    >
-                      Reset recenti
-                    </button>
-                  )}
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Limita alle parole inserite in un determinato lasso di tempo.</div>
+              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 shadow-inner mt-0">
+                <div className="flex items-center gap-2 text-sm leading-tight">
+                  <span>Ultime inserite</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-sm">
+                <div className="flex items-center gap-3">
                   <select
-                    value={recentMode}
-                    onChange={(e) => setRecentMode(e.target.value)}
-                    className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 text-sm min-w-[180px]"
-                    disabled={!useRecent}
+                    value={useRecent ? recentMode : 'none'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'none') {
+                        setUseRecent(false);
+                      } else {
+                        setUseRecent(true);
+                        setRecentMode(val);
+                      }
+                    }}
+                    className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm min-w-[180px]"
                   >
+                    <option value="none">Disattivo</option>
                     <option value="count">Ultime (numero)</option>
                     <option value="day1">Ultime 24h</option>
                     <option value="days7">Ultimi 7 giorni</option>
@@ -1864,13 +2085,13 @@ export default function LessicoGame() {
                   </select>
                   {useRecent && recentMode === 'count' && (
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-400">Quante:</span>
+                      <span className="text-slate-400 text-xs">Quante:</span>
                       <input
                         type="number"
                         min="1"
                         value={recentLimit}
                         onChange={(e) => setRecentLimit(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                        className="w-24 bg-slate-900/70 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 text-sm"
+                        className="w-20 bg-slate-900/70 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 text-sm"
                       />
                     </div>
                   )}
@@ -1900,7 +2121,7 @@ export default function LessicoGame() {
     </div>
   );
   const HeaderBar = ({ rightContent }) => (
-    <div className="flex items-center justify-between mb-6 bg-orange-300 text-slate-900 rounded-2xl px-4 py-3 shadow-lg border border-orange-400/70">
+    <div className="flex items-center justify-between mb-6 bg-amber-400 text-slate-900 rounded-2xl px-4 py-3 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]">
       <button
         onClick={() => setGameMode(null)}
         className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity"
@@ -2429,15 +2650,15 @@ export default function LessicoGame() {
   const MatchMode = () => (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 p-4">
       <div className="max-w-2xl mx-auto pt-4">
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => setGameMode(null)}
-            className="bg-orange-300 text-slate-900 px-3 py-2 rounded-xl font-semibold hover:opacity-80 transition"
-          >
-            ← Menu
-          </button>
-          <div className="flex items-center gap-4">
-            <div className="bg-sky-900/30 px-3 py-1 rounded-full border border-sky-800/50">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => setGameMode(null)}
+              className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-3 py-2 rounded-xl font-semibold transition border border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]"
+            >
+              ← Menu
+            </button>
+            <div className="flex items-center gap-4">
+              <div className="bg-sky-900/30 px-3 py-1 rounded-full border border-sky-800/50">
               <span className="text-sky-400">Mosse: {moves}</span>
             </div>
             <div className="bg-cyan-900/30 px-3 py-1 rounded-full border border-cyan-800/50">
@@ -2537,7 +2758,7 @@ export default function LessicoGame() {
         <div className="flex gap-3">
           <button
             onClick={() => setGameMode(null)}
-            className="flex-1 bg-slate-700/30 hover:bg-slate-700/50 text-slate-200 py-3 rounded-xl transition-colors border border-slate-600/50"
+            className="flex-1 bg-amber-400 hover:bg-amber-300 text-slate-900 py-3 rounded-xl transition-colors border border-amber-200 font-semibold shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]"
           >
             Menu
           </button>
@@ -2626,6 +2847,9 @@ export default function LessicoGame() {
               <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
             )}
           </div>
+          {(() => {
+            const inReview = wordsToReview.some(w => w.term === word.term);
+            return (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -2635,14 +2859,16 @@ export default function LessicoGame() {
                   return prev;
                 }
                 triggerAddedFeedback('added');
-                return [...prev, { ...word, errorFlag: 'SI' }];
+                return [...prev, { ...word, errorFlag: 'SI', source: 'manual', learned: false }];
               });
               setConsultOpenLetter(letter);
             }}
-            className="text-xs px-3 py-1 rounded-full border border-cyan-800/50 bg-cyan-900/40 text-cyan-200 hover:bg-cyan-900/60 transition-all"
+              className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'border-cyan-800/50 bg-cyan-900/40 text-cyan-200 hover:bg-cyan-900/60'}`}
           >
             + Da rivedere
           </button>
+            );
+          })()}
         </div>
         <p className="text-slate-200 mb-2 leading-relaxed">{word.definition}</p>
         {word.etymology && (
@@ -2666,7 +2892,7 @@ export default function LessicoGame() {
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setGameMode(null)}
-                className="bg-orange-300 text-slate-900 px-3 py-2 rounded-xl font-semibold hover:opacity-80 transition"
+                className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-3 py-2 rounded-xl font-semibold transition border border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]"
               >
                 ← Menu
               </button>
@@ -2809,7 +3035,7 @@ export default function LessicoGame() {
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setGameMode(null)}
-                className="bg-orange-300 text-slate-900 px-3 py-2 rounded-xl font-semibold hover:opacity-80 transition"
+                className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-3 py-2 rounded-xl font-semibold transition border border-amber-200 shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)]"
               >
                 ← Menu
               </button>
@@ -2895,6 +3121,9 @@ export default function LessicoGame() {
                                       <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
                                     )}
                                   </div>
+                                  {(() => {
+                                    const inReview = wordsToReview.some(w => w.term === word.term);
+                                    return (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -2905,14 +3134,16 @@ export default function LessicoGame() {
                                           return prev;
                                         }
                                         triggerAddedFeedback('added');
-                                        return [...prev, { ...word, errorFlag: 'SI' }];
+                                        return [...prev, { ...word, errorFlag: 'SI', source: 'manual', learned: false }];
                                       });
                                       setConsultFlashOpenLetter(currentLetter);
                                     }}
-                                    className="text-xs bg-cyan-900/40 text-cyan-200 px-3 py-1 rounded-full border border-cyan-800/50 hover:bg-cyan-900/60"
+                                        className={`text-xs px-3 py-1 rounded-full border transition-all ${inReview ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_6px_18px_-12px_rgba(251,191,36,0.45)]' : 'bg-cyan-900/40 text-cyan-200 border-cyan-800/50 hover:bg-cyan-900/60'}`}
                                   >
                                     + Da rivedere
                                   </button>
+                                    );
+                                  })()}
                                 </div>
                             <p className="text-slate-200 leading-relaxed">{word.definition}</p>
                             {word.etymology && (
