@@ -91,8 +91,16 @@ const parseCSV = (text) => {
     const term = getField(row, 1, 'termine', 'parola', 'term');
     const accent = getField(row, 2, 'accento', 'accent');
     const definition = getField(row, 3, 'definizione', 'definition');
-    const synonyms = getField(row, 4, 'sinonimi', 'sinonimo', 'synonyms');
-    const antonyms = getField(row, 5, 'contrari', 'antonomi', 'antonimi', 'antonyms');
+    const cleanVal = (val) => {
+      if (!val) return '';
+      const trimmed = `${val}`.trim();
+      if (!trimmed) return '';
+      const lowered = trimmed.toLowerCase();
+      if (['no', '-', '--', '/', 'non applicabile', 'n/a'].includes(lowered)) return '';
+      return trimmed;
+    };
+    const synonyms = cleanVal(getField(row, 4, 'sinonimi', 'sinonimo', 'synonyms'));
+    const antonyms = cleanVal(getField(row, 5, 'contrari', 'antonomi', 'antonimi', 'antonyms'));
     const etymology = getField(row, 6, 'etimologia', 'etimo');
     const ex1 = getField(row, 7, 'esempio 1', 'esempio', 'example');
     const ex2 = getField(row, 8, 'esempio 2');
@@ -1325,6 +1333,17 @@ export default function LessicoGame() {
     if (!word) return null;
     const commonErrorsClean = `${word.commonErrors || ''}`.trim();
     const showCommonErrors = commonErrorsClean && !['no', 'n/a', 'nessuno'].includes(commonErrorsClean.toLowerCase());
+    const cleanField = (val) => {
+      const trimmed = `${val || ''}`.trim();
+      if (!trimmed) return '';
+      const lowered = trimmed.toLowerCase();
+      if (['no', '-', '--', '/', 'non applicabile', 'n/a'].includes(lowered)) return '';
+      return trimmed;
+    };
+    const safeSynonyms = cleanField(word.synonyms);
+    const safeAntonyms = cleanField(word.antonyms);
+    const safeFrequency = cleanField(word.frequencyUsage);
+    const safeTechnical = cleanField(word.technical);
     return (
       <div className="mt-4 p-4 bg-slate-800/60 rounded-2xl border border-slate-700/70 text-left space-y-3">
         <div className={`text-lg font-bold ${isCorrect ? 'text-cyan-400' : 'text-red-400'}`}>
@@ -1345,19 +1364,19 @@ export default function LessicoGame() {
             <p className="italic text-slate-300">{word.etymology}</p>
           )}
         </div>
-        {(word.synonyms || word.antonyms || word.frequencyUsage || word.technical || showCommonErrors) && (
+        {(safeSynonyms || safeAntonyms || safeFrequency || safeTechnical || showCommonErrors) && (
           <div className="text-sm text-slate-200 space-y-1">
-            {word.synonyms && (
-              <p><span className="font-semibold">Sinonimi:</span> <span className="text-slate-100">{word.synonyms}</span></p>
+            {safeSynonyms && (
+              <p><span className="font-semibold">Sinonimi:</span> <span className="text-slate-100">{safeSynonyms}</span></p>
             )}
-            {word.antonyms && (
-              <p><span className="font-semibold">Contrari:</span> <span className="text-slate-100">{word.antonyms}</span></p>
+            {safeAntonyms && (
+              <p><span className="font-semibold">Contrari:</span> <span className="text-slate-100">{safeAntonyms}</span></p>
             )}
-            {word.frequencyUsage && (
-              <p><span className="font-semibold">Frequenza d'uso:</span> <span className="text-slate-100">{word.frequencyUsage}</span></p>
+            {safeFrequency && (
+              <p><span className="font-semibold">Frequenza d'uso:</span> <span className="text-slate-100">{safeFrequency}</span></p>
             )}
-            {word.technical && (
-              <p><span className="font-semibold">Linguaggio tecnico:</span> <span className="text-slate-100">{word.technical}</span></p>
+            {safeTechnical && (
+              <p><span className="font-semibold">Linguaggio tecnico:</span> <span className="text-slate-100">{safeTechnical}</span></p>
             )}
             {showCommonErrors && (
               <p><span className="font-semibold">Errori frequenti:</span> <span className="text-slate-100">{word.commonErrors}</span></p>
@@ -3045,27 +3064,27 @@ export default function LessicoGame() {
         key={word.term}
         className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 hover:border-cyan-800/60 transition-colors"
       >
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
-                  {word.accent && (
-                    <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(word.term);
-                    }}
-                    className="text-slate-400 hover:text-amber-300 transition-colors"
-                    aria-label="Preferito"
-                  >
-                    <Heart className={`w-5 h-5 ${favorites.has(word.term) ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
-                  </button>
-                  {(() => {
-                    const inReview = wordsToReview.some(w => w.term === word.term);
-                    return (
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <h3 className="text-xl font-bold text-slate-100">{word.term}</h3>
+            {word.accent && (
+              <p className="text-slate-400 text-sm">Accento: {word.accent}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFavorite(word.term);
+              }}
+              className="text-slate-400 hover:text-amber-300 transition-colors"
+              aria-label="Preferito"
+            >
+              <Heart className={`w-5 h-5 ${favorites.has(word.term) ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
+            </button>
+            {(() => {
+              const inReview = wordsToReview.some(w => w.term === word.term);
+              return (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -3088,6 +3107,12 @@ export default function LessicoGame() {
                 </div>
               </div>
         <p className="text-slate-200 mb-2 leading-relaxed">{word.definition}</p>
+        {(word.synonyms || word.antonyms) && (
+          <div className="text-slate-300 text-sm space-y-1 mb-2">
+            {word.synonyms && <p><span className="font-semibold">Sinonimi:</span> {word.synonyms}</p>}
+            {word.antonyms && <p><span className="font-semibold">Contrari:</span> {word.antonyms}</p>}
+          </div>
+        )}
         {word.etymology && (
           <p className="text-slate-400 text-sm italic mb-2">{word.etymology}</p>
         )}
@@ -3388,6 +3413,27 @@ export default function LessicoGame() {
                         </div>
                         {showDefinitionFirst && hasExamples && <ExamplesBlock word={word} className="mt-2" />}
                         <p className="text-slate-200 leading-relaxed">{word.definition}</p>
+                        {(word.synonyms || word.antonyms) && (
+                          <div className="text-slate-300 text-sm space-y-1">
+                            {(() => {
+                              const cleanField = (val) => {
+                                const trimmed = `${val || ''}`.trim();
+                                if (!trimmed) return '';
+                                const lowered = trimmed.toLowerCase();
+                                if (['no', '-', '--', '/', 'non applicabile', 'n/a'].includes(lowered)) return '';
+                                return trimmed;
+                              };
+                              const syn = cleanField(word.synonyms);
+                              const ant = cleanField(word.antonyms);
+                              return (
+                                <>
+                                  {syn && <p><span className="font-semibold">Sinonimi:</span> {syn}</p>}
+                                  {ant && <p><span className="font-semibold">Contrari:</span> {ant}</p>}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                         {word.etymology && (
                           <p className="text-slate-400 text-sm italic">{word.etymology}</p>
                         )}
@@ -3398,7 +3444,7 @@ export default function LessicoGame() {
                             {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {word.commonErrors}</p>}
                           </div>
                         )}
-                        {!showDefinitionFirst && hasExamples && <ExamplesBlock word={word} />}
+                        {!showDefinitionFirst && hasExamples && <ExamplesBlock word={word} className="mt-2" />}
                         <p className="text-slate-500 text-xs">Clicca per richiudere</p>
                       </div>
                     )}
