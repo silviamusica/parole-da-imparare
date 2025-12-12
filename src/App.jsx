@@ -213,6 +213,8 @@ export default function LessicoGame() {
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const [showUploadInfo, setShowUploadInfo] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const perfectCelebratedRef = useRef(false);
 
   const computeChunkAvailability = (pool) => {
     const total = pool.length;
@@ -283,6 +285,25 @@ export default function LessicoGame() {
       foxBreathTimers.current.push(on);
     });
   };
+
+  useEffect(() => {
+    if (gameMode === 'results' && gameStats.total > 0 && gameStats.correct === gameStats.total) {
+      if (!perfectCelebratedRef.current) {
+        perfectCelebratedRef.current = true;
+        if (foxAnimTimeout.current) clearTimeout(foxAnimTimeout.current);
+        setFoxAnim(false);
+        setFoxAnimSize('big');
+        setFoxVariant('feedback-wrong'); // resta testa alzata finché resti qui
+        setShowConfetti(true);
+        const t = setTimeout(() => setShowConfetti(false), 4000);
+        return () => clearTimeout(t);
+      }
+    } else {
+      perfectCelebratedRef.current = false;
+      setShowConfetti(false);
+      setFoxVariant('default');
+    }
+  }, [gameMode, gameStats, foxAnimTimeout]);
 
   // Gestione upload file
   const processCSVFile = (file) => {
@@ -1284,6 +1305,35 @@ export default function LessicoGame() {
       </span>
     </span>
   );
+  
+  const ConfettiOverlay = () => {
+    const colors = ['#f97316', '#22d3ee', '#a855f7', '#facc15', '#34d399'];
+    const pieces = Array.from({ length: 40 }).map((_, i) => ({
+      left: `${Math.random() * 100}%`,
+      delay: Math.random() * 0.5,
+      duration: 3 + Math.random() * 1.5,
+      rotate: Math.random() * 360,
+      scale: 0.8 + Math.random() * 0.6,
+      color: colors[i % colors.length]
+    }));
+    return (
+      <div className="confetti-overlay">
+        {pieces.map((p, idx) => (
+          <span
+            key={idx}
+            className="confetti-piece"
+            style={{
+              left: p.left,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+              transform: `rotate(${p.rotate}deg) scale(${p.scale})`,
+              backgroundColor: p.color
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
 
   const SelectionInfoModal = () => (
     <div
@@ -1410,8 +1460,11 @@ export default function LessicoGame() {
           </label>
         </div>
 
-        <div className="mt-6 space-y-4">
-          <p className="text-slate-200 font-normal text-base">Scarica il modello CSV da personalizzare, oppure prova subito la demo.</p>
+        <div className="mt-6 space-y-3">
+          <div className="leading-tight">
+            <p className="text-slate-200 font-normal text-base">Scarica il modello CSV da personalizzare,</p>
+            <p className="text-slate-200 font-normal text-base">oppure prova subito la demo.</p>
+          </div>
           <button
             onClick={() => downloadFile('csv_empty')}
             className="w-full bg-cyan-900 text-slate-50 font-semibold px-4 py-3 rounded-xl shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)] border border-cyan-800/60 flex items-center justify-center gap-2"
@@ -1772,18 +1825,24 @@ export default function LessicoGame() {
             {[
               {
                 key: 'review',
-                label: `Ripasso (${wordsToReview.length})`,
-                description: 'Parole segnate per i prossimi ripassi.'
+                title: 'Ripasso',
+                count: wordsToReview.length,
+                description: 'Parole segnate per i prossimi ripassi.',
+                icon: <RotateCcw className="w-4 h-4" />
               },
               {
                 key: 'played',
-                label: `Risposte corrette (${playedWords.length})`,
-                description: 'Le ultime risposte giuste nei giochi.'
+                title: 'Risposte corrette',
+                count: playedWords.length,
+                description: 'Le ultime risposte giuste nei giochi.',
+                icon: <Check className="w-4 h-4" />
               },
               {
                 key: 'learned',
-                label: `Apprese (${words.filter(w => w.learned).length})`,
-                description: 'Parole che hai già memorizzato.'
+                title: 'Apprese',
+                count: words.filter(w => w.learned).length,
+                description: 'Parole che hai già memorizzato.',
+                icon: <Sparkles className="w-4 h-4" />
               }
             ].map((item) => (
               <button
@@ -1792,11 +1851,19 @@ export default function LessicoGame() {
                   setReviewView(item.key);
                   setResultsView(item.key);
                 }}
-                className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 border text-slate-200 hover:text-orange-200 hover:border-amber-300/60 border-slate-600/70 bg-slate-800/80 hover:bg-slate-700/70"
+                className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-semibold border text-slate-200 bg-slate-800/80 border-slate-600/70"
               >
-                <div className="flex flex-col">
-                  <span>{item.label}</span>
-                  <span className="text-xs font-normal text-slate-400">{item.description}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-700/80 border border-slate-600/70 flex items-center justify-center text-slate-200">
+                    {item.icon}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm text-slate-100">{item.title}</span>
+                      <span className="text-xs text-cyan-300">({item.count})</span>
+                    </span>
+                    <span className="text-xs font-normal text-slate-400">{item.description}</span>
+                  </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
@@ -2716,7 +2783,21 @@ export default function LessicoGame() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-zinc-900 flex items-center justify-center p-4">
       <div className="bg-slate-800/40 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-center border border-slate-700/50">
         <div className="flex justify-center mb-4">
-          <img src={LogoVolpinaOcchiAperti} alt="Logo occhi aperti" className="h-[84px] w-auto drop-shadow-xl" />
+          <img
+            src={
+              foxVariant === 'feedback-ok'
+                ? LogoVolpinaOcchiAperti
+                : foxVariant === 'feedback-wrong'
+                ? LogoVolpinaTestaAlzata
+                : foxVariant === 'happy'
+                ? LogoVolpinaOcchiAperti
+                : foxVariant === 'alt'
+                ? LogoVolpinaTestaAlzata
+                : LogoVolpinaChiusi
+            }
+            alt="Logo volpina"
+            className="h-[84px] w-auto drop-shadow-xl transition-transform"
+          />
         </div>
         
         <h2 className="text-3xl font-bold text-slate-100 mb-6">Partita finita!</h2>
@@ -3223,6 +3304,7 @@ export default function LessicoGame() {
       </div>
     </div>
       )}
+      {showConfetti && <ConfettiOverlay />}
       {showSelectionPanel && <SelectionPanel />}
       {showInstructions && <InstructionsModal />}
       {showReviewHelp && <ReviewInfoModal />}
