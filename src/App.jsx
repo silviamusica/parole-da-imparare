@@ -2514,6 +2514,7 @@ export default function LessicoGame() {
                   <div>Linguaggio tecnico: {(showCorrectAnswer || word).technical}</div>
                 )}
               </div>
+              <ExamplesBlock word={showCorrectAnswer || word} />
               {waitingForContinue && (
                 <button
                   type="button"
@@ -2564,10 +2565,6 @@ export default function LessicoGame() {
               </button>
 
             </>
-          )}
-
-          {waitingForContinue && showCorrectAnswer && (
-            <CorrectAnswerDisplay correctWord={showCorrectAnswer} />
           )}
           <FoxInline />
         </div>
