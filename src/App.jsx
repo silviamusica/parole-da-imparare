@@ -1560,14 +1560,24 @@ export default function LessicoGame() {
 
   // Copia negli appunti con feedback
   const copyToClipboard = async (format) => {
+    // Verifica se ci sono dati da copiare
+    const hasData = favorites.size > 0 || wordsToReview.length > 0 ||
+                    words.some(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0);
+
+    if (!hasData) {
+      setCopyFeedback('✗ Nessun contenuto da copiare: aggiungi preferiti, ripasso o frasi personali prima.');
+      setTimeout(() => setCopyFeedback(''), 4000);
+      return;
+    }
+
     try {
       const text = formatWordsForExport(format);
       await navigator.clipboard.writeText(text);
-      setCopyFeedback('✓ Copiato!');
+      setCopyFeedback('✓ Contenuto copiato negli appunti!');
       setTimeout(() => setCopyFeedback(''), 2000);
     } catch (err) {
-      setCopyFeedback('✗ Errore');
-      setTimeout(() => setCopyFeedback(''), 2000);
+      setCopyFeedback('✗ Errore durante la copia: verifica i permessi del browser.');
+      setTimeout(() => setCopyFeedback(''), 3000);
     }
   };
 
@@ -2271,9 +2281,6 @@ export default function LessicoGame() {
               Scarica file
             </button>
           </div>
-          {copyFeedback && (
-            <p className="text-green-400 text-sm text-center">{copyFeedback}</p>
-          )}
           {showExportFormatPicker && (
             <div className="space-y-2 pt-2 border-t border-slate-700">
               <label className="text-slate-400 text-sm">Scegli formato da scaricare:</label>
