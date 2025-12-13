@@ -1459,8 +1459,12 @@ export default function LessicoGame() {
     if (format === 'text') {
       const alpha = (arr) => [...arr].sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' }));
       const preferite = alpha(words.filter(w => favorites.has(w.term) || w.favorite));
-      const ripasso = alpha(words.filter(w => w.appreso === 'RIPASSO'));
-      const daRivedere = alpha(wordsToReview);
+
+      // Unisci "Da rivedere" e "Da ripassare" rimuovendo duplicati
+      const ripassoFromCSV = words.filter(w => w.appreso === 'RIPASSO');
+      const allRipasso = [...new Map([...wordsToReview, ...ripassoFromCSV].map(w => [w.term, w])).values()];
+      const ripasso = alpha(allRipasso);
+
       const withSentences = alpha(words.filter(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0));
       const risposteCorrette = alpha(words.filter(w => masteredWords.has(w.term)));
 
@@ -1486,8 +1490,7 @@ export default function LessicoGame() {
       };
 
       return [
-        sectionText('Da rivedere', daRivedere),
-        sectionText('Da ripassare', ripasso),
+        sectionText('Ripasso', ripasso),
         sectionText('Preferite', preferite),
         compactListText('Risposte corrette', risposteCorrette),
         sentencesText()
