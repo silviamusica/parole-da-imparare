@@ -1327,7 +1327,12 @@ export default function LessicoGame() {
 
   useEffect(() => {
     // Non far respirare la volpe in modalità personalSentences per evitare re-render
+    // e in results con punteggio perfetto per mostrare la celebrazione
     if (gameMode === 'personalSentences') {
+      clearFoxBreathing();
+      return;
+    }
+    if (gameMode === 'results' && gameStats.total > 0 && gameStats.correct === gameStats.total) {
       clearFoxBreathing();
       return;
     }
@@ -1336,7 +1341,7 @@ export default function LessicoGame() {
     return () => {
       clearFoxBreathing();
     };
-  }, [gameMode]);
+  }, [gameMode, gameStats]);
 
   // Gestione risposta corretta
   const handleCorrectAnswer = () => {
