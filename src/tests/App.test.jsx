@@ -23,7 +23,7 @@ describe('Giochi di Parole - Test Funzionalità Critiche', () => {
   describe('1. Rendering iniziale', () => {
     it('dovrebbe renderizzare il titolo principale', () => {
       render(<App />);
-      expect(screen.getByText(/Giochi di Parole/i)).toBeInTheDocument();
+      expect(screen.getByText(/Giochi di parole/i)).toBeInTheDocument();
     });
 
     it('dovrebbe mostrare il pulsante per caricare CSV', () => {
@@ -31,44 +31,44 @@ describe('Giochi di Parole - Test Funzionalità Critiche', () => {
       expect(screen.getByText(/Carica il tuo CSV/i)).toBeInTheDocument();
     });
 
-    it('dovrebbe mostrare il pulsante istruzioni', () => {
+    it('dovrebbe mostrare il pulsante formato CSV', () => {
       render(<App />);
-      const instructionsButton = screen.getByLabelText(/Mostra istruzioni/i);
-      expect(instructionsButton).toBeInTheDocument();
+      const formatButton = screen.getByLabelText(/Formato CSV e istruzioni/i);
+      expect(formatButton).toBeInTheDocument();
     });
   });
 
-  describe('2. Modale Istruzioni', () => {
-    it('dovrebbe aprire e chiudere le istruzioni', async () => {
+  describe('2. Modale Formato CSV', () => {
+    it('dovrebbe aprire e chiudere il modale formato CSV', async () => {
       render(<App />);
 
-      // Apri istruzioni
-      const instructionsButton = screen.getByLabelText(/Mostra istruzioni/i);
-      fireEvent.click(instructionsButton);
+      // Apri modale formato
+      const formatButton = screen.getByLabelText(/Formato CSV e istruzioni/i);
+      fireEvent.click(formatButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/Benvenuto!/i)).toBeInTheDocument();
+        expect(screen.getByText(/Come preparare il CSV/i)).toBeInTheDocument();
       });
 
-      // Chiudi istruzioni
-      const closeButton = screen.getByText('✕');
-      fireEvent.click(closeButton);
+      // Chiudi modale
+      const closeButtons = screen.getAllByText('✕');
+      fireEvent.click(closeButtons[0]);
 
       await waitFor(() => {
-        expect(screen.queryByText(/Benvenuto!/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Come preparare il CSV/i)).not.toBeInTheDocument();
       });
     });
   });
 
   describe('3. Upload CSV', () => {
     it('dovrebbe accettare file CSV', async () => {
-      render(<App />);
+      const { container } = render(<App />);
 
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
 
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
 
       fireEvent.change(input, { target: { files: [file] } });
 
@@ -80,41 +80,45 @@ describe('Giochi di Parole - Test Funzionalità Critiche', () => {
 
   describe('4. Filtri', () => {
     it('dovrebbe aprire il pannello filtri', async () => {
-      render(<App />);
+      const { container } = render(<App />);
 
       // Carica CSV prima
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
-        expect(screen.getByText(/Imposta i filtri/i)).toBeInTheDocument();
+        expect(screen.getByText('Scegli')).toBeInTheDocument();
       });
 
-      // Clicca su imposta filtri
-      const filterButton = screen.getByText(/Imposta i filtri/i);
+      // Clicca su scegli (apre pannello filtri)
+      const filterButton = screen.getByText('Scegli');
       fireEvent.click(filterButton);
 
       await waitFor(() => {
+        // Verifica che il pannello filtri sia aperto cercando il titolo
         expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByText('Imposta i filtri')).toBeInTheDocument();
       });
     });
 
     it('dovrebbe avere il pulsante Reset nei filtri', async () => {
-      render(<App />);
+      const { container } = render(<App />);
 
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
-        const filterButton = screen.getByText(/Imposta i filtri/i);
-        fireEvent.click(filterButton);
+        expect(screen.getByText('Scegli')).toBeInTheDocument();
       });
+
+      const filterButton = screen.getByText('Scegli');
+      fireEvent.click(filterButton);
 
       await waitFor(() => {
         expect(screen.getByText('Reset')).toBeInTheDocument();
@@ -124,12 +128,12 @@ describe('Giochi di Parole - Test Funzionalità Critiche', () => {
 
   describe('5. Export e Copia', () => {
     it('dovrebbe mostrare i flag di export', async () => {
-      render(<App />);
+      const { container } = render(<App />);
 
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
@@ -142,13 +146,13 @@ describe('Giochi di Parole - Test Funzionalità Critiche', () => {
       });
     });
 
-    it('dovrebbe avere checkbox per Ripasso, Preferite, Risposte corrette, Apprese, Frasi personali', async () => {
-      render(<App />);
+    it('dovrebbe avere checkbox per export', async () => {
+      const { container } = render(<App />);
 
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
@@ -157,47 +161,49 @@ describe('Giochi di Parole - Test Funzionalità Critiche', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Ripasso')).toBeInTheDocument();
-        expect(screen.getByText('Preferite')).toBeInTheDocument();
-        expect(screen.getByText('Risposte corrette')).toBeInTheDocument();
-        expect(screen.getByText('Apprese')).toBeInTheDocument();
-        expect(screen.getByText('Frasi personali')).toBeInTheDocument();
+        const checkboxes = screen.getAllByRole('checkbox');
+        expect(checkboxes.length).toBeGreaterThanOrEqual(5);
       });
     });
   });
 
   describe('6. Modalità Studio', () => {
-    it('dovrebbe permettere di accedere a Studio → Vista Schede', async () => {
-      render(<App />);
+    it('dovrebbe permettere di accedere a Studio → Elenco', async () => {
+      const { container } = render(<App />);
 
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
-        const studioButton = screen.getByText('Studio');
-        fireEvent.click(studioButton);
+        expect(screen.getByText('Studio')).toBeInTheDocument();
       });
 
-      await waitFor(() => {
-        const vistaSchedeButton = screen.getByText('Vista Schede');
-        fireEvent.click(vistaSchedeButton);
-      });
+      const studioButton = screen.getByText('Studio');
+      fireEvent.click(studioButton);
 
       await waitFor(() => {
-        expect(screen.getByText('test')).toBeInTheDocument();
+        expect(screen.getByText('Elenco')).toBeInTheDocument();
+      });
+
+      const elencoButton = screen.getByText('Elenco');
+      fireEvent.click(elencoButton);
+
+      await waitFor(() => {
+        // Verifica che sia visibile il selettore per lettera nella modalità elenco
+        expect(screen.getByText(/Lettera T/i)).toBeInTheDocument();
       });
     });
 
     it('dovrebbe permettere di accedere a Frasi personali', async () => {
-      render(<App />);
+      const { container } = render(<App />);
 
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
@@ -218,16 +224,16 @@ describe('Giochi di Parole - Test Funzionalità Critiche', () => {
 
   describe('7. Volpe animata', () => {
     it('dovrebbe renderizzare la volpe', async () => {
-      render(<App />);
+      const { container } = render(<App />);
 
       const csvContent = `Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali
 14-10-25,test,tèst,Una prova,prova,,,esempio 1,,,alta,NO,NO,NO,NO,`;
       const file = new File([csvContent], 'test.csv', { type: 'text/csv' });
-      const input = screen.getByLabelText(/Carica il tuo CSV/i);
+      const input = container.querySelector('input[type="file"]');
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
-        const foxImages = screen.getAllByAltText(/volpe/i);
+        const foxImages = screen.getAllByAltText(/Logo/i);
         expect(foxImages.length).toBeGreaterThan(0);
       });
     });

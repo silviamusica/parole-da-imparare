@@ -79,12 +79,24 @@ const parseCSV = (text) => {
   const headers = parseRow(lines[0]).map(h => h.toLowerCase().trim());
   const hasExplicitHeaders = ['termine', 'parola', 'term', 'definizione', 'definition'].some(h => headers.includes(h));
 
+  // Normalizza intestazione rimuovendo spazi e caratteri speciali
+  const normalizeHeader = (str) => str.toLowerCase().replace(/[\s_-]/g, '');
+
   const idx = (...names) => {
+    // Prova prima match esatto
     for (const name of names) {
       const target = name.toLowerCase();
       const exact = headers.indexOf(target);
       if (exact !== -1) return exact;
     }
+    // Poi prova match normalizzato (senza spazi)
+    const normalizedHeaders = headers.map(normalizeHeader);
+    for (const name of names) {
+      const normalized = normalizeHeader(name);
+      const normalizedIdx = normalizedHeaders.indexOf(normalized);
+      if (normalizedIdx !== -1) return normalizedIdx;
+    }
+    // Infine prova match parziale
     for (const name of names) {
       const target = name.toLowerCase();
       const partial = headers.findIndex(header => header.includes(target));
@@ -2087,6 +2099,9 @@ export default function LessicoGame() {
         {menuTab === 'consultation' ? (
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
             <p className="text-slate-400 text-sm mb-3">Scegli la modalità di studio</p>
+            <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mb-3">
+              <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> Usa ❤️ <strong>Preferiti</strong> per le parole che vuoi aggiungere al tuo vocabolario personale. Usa 📝 <strong>Ripasso</strong> per le parole di cui non sei sicuro e che vuoi rivedere.</p>
+            </div>
             <div className="grid gap-2">
               {[
                 {
@@ -2135,6 +2150,9 @@ export default function LessicoGame() {
         ) : menuTab === 'games' ? (
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
             <p className="text-slate-400 text-sm mb-3">Scegli con quale gioco imparare</p>
+            <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mb-3">
+              <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> Usa ❤️ <strong>Preferiti</strong> per le parole che vuoi aggiungere al tuo vocabolario personale. Usa 📝 <strong>Ripasso</strong> per le parole di cui non sei sicuro e che vuoi rivedere.</p>
+            </div>
             <div className="grid gap-2">
               {[
                 { key: 'flashcard', label: 'Flashcard', desc: 'Studia le parole una alla volta', icon: <Brain className="w-4 h-4" /> },
@@ -4430,10 +4448,10 @@ export default function LessicoGame() {
           onClick={() => setShowUploadInfo(false)}
         >
           <div
-            className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full p-6 text-slate-100 shadow-2xl"
+            className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 text-slate-100 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-4 sticky top-0 bg-slate-900 pb-2 -mt-6 pt-6 z-10">
               <h2 className="text-2xl font-bold">Come preparare il CSV</h2>
               <button
                 onClick={() => setShowUploadInfo(false)}
@@ -4477,6 +4495,7 @@ export default function LessicoGame() {
                   <li>• Se un campo è vuoto, lascialo vuoto (non spostare i valori!)</li>
                   <li>• Mantieni sempre l'ordine delle 16 colonne</li>
                   <li>• Usa la virgola "," come separatore (no ";" o tab)</li>
+                  <li>• Le intestazioni sono flessibili: "Esempio 1", "esempio1", "ESEMPIO1" funzionano tutte</li>
                   <li>• Salva come <strong>CSV UTF-8</strong></li>
                 </ul>
               </div>
@@ -4487,9 +4506,9 @@ export default function LessicoGame() {
                   <li>• <strong>Data:</strong> formato GG-MM-AA (es: 15-03-24) oppure vuoto</li>
                   <li>• <strong>APPRESO:</strong> SI, NO o RIPASSO</li>
                   <li>• <strong>Preferito:</strong> SI o NO</li>
-                  <li>• <strong>Sinonimi/Contrari:</strong> separati da ";" (es: bello;carino)</li>
+                  <li>• <strong>Sinonimi/Contrari:</strong> separati da ";" — puoi scrivere "parola1;parola2" o "parola1; parola2"</li>
                   <li>• <strong>Errori:</strong> descrizione testuale oppure "NO"</li>
-                  <li>• <strong>Frasi personali:</strong> separate da ";" (es: frase 1;frase 2)</li>
+                  <li>• <strong>Frasi personali:</strong> separate da ";" — puoi scrivere "frase1;frase2" o "frase1; frase2"</li>
                 </ul>
               </div>
 
