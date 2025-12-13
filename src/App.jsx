@@ -451,7 +451,7 @@ export default function LessicoGame() {
         setFoxVariant('default');
       }, 1200);
       foxBreathTimers.current.push(off);
-    }, 0);
+    }, 100); // Piccolo delay per assicurare visibilità
     foxBreathTimers.current.push(on);
   };
 
@@ -910,7 +910,7 @@ export default function LessicoGame() {
           </div>
 
           <div className="border-t border-slate-700 pt-4">
-            <p className="font-semibold text-base mb-2">📚 3. Scegli come studiare</p>
+            <p className="font-semibold text-base mb-2">📚 3. Scegli come imparare</p>
             <p className="text-slate-300 mb-2">Hai tre sezioni principali:</p>
 
             <div className="space-y-3">
