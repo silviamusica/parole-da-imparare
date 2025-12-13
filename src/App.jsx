@@ -81,8 +81,14 @@ const parseCSV = (text) => {
 
   const idx = (...names) => {
     for (const name of names) {
-      const pos = headers.indexOf(name);
-      if (pos !== -1) return pos;
+      const target = name.toLowerCase();
+      const exact = headers.indexOf(target);
+      if (exact !== -1) return exact;
+    }
+    for (const name of names) {
+      const target = name.toLowerCase();
+      const partial = headers.findIndex(header => header.includes(target));
+      if (partial !== -1) return partial;
     }
     return -1;
   };
