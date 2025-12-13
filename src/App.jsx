@@ -294,6 +294,16 @@ export default function LessicoGame() {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [showLetterPicker, showSelectionPanel]);
 
+  // Reset consultation filters quando cambia gameMode
+  useEffect(() => {
+    const consultationModes = ['consultation', 'consultationFlashcard', 'consultationFlashcardDefinition', 'personalSentences'];
+    if (consultationModes.includes(gameMode)) {
+      setConsultLetters(['all']);
+      setConsultFavorites(false);
+      setConsultOrder('alpha');
+    }
+  }, [gameMode]);
+
   const computeChunkAvailability = useCallback((pool) => {
     const total = pool.length;
     return {
@@ -1058,10 +1068,6 @@ export default function LessicoGame() {
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     setIsTimerRunning(false);
-    // Reset consultation filters when starting mode
-    setConsultLetters(['all']);
-    setConsultFavorites(false);
-    setConsultOrder('alpha');
   };
 
   const startConsultationFlashcard = (showDefinitionOnly = false) => {
@@ -1085,10 +1091,6 @@ export default function LessicoGame() {
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     setIsTimerRunning(false);
-    // Reset consultation filters when starting mode
-    setConsultLetters(['all']);
-    setConsultFavorites(false);
-    setConsultOrder('alpha');
   };
 
   const startPersonalSentences = () => {
@@ -1111,10 +1113,6 @@ export default function LessicoGame() {
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     setIsTimerRunning(false);
-    // Reset consultation filters when starting mode
-    setConsultLetters(['all']);
-    setConsultFavorites(false);
-    setConsultOrder('alpha');
   };
 
   // Inizia nuovo gioco
