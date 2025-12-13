@@ -2270,6 +2270,15 @@ export default function LessicoGame() {
           </div>
         )}
 
+        <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-3 mb-3">
+          <p className="text-slate-300 text-xs leading-relaxed mb-2">
+            <strong className="text-cyan-300">📋 Copia negli appunti (TXT):</strong> Include Ripasso, Preferite, Risposte corrette (dalla sessione), Apprese (dal CSV) e Frasi personali. Ideale per studiare o condividere velocemente.
+          </p>
+          <p className="text-slate-300 text-xs leading-relaxed">
+            <strong className="text-cyan-300">💾 Scarica CSV:</strong> Tutto il vocabolario con colonne aggiornate: APPRESO (SI/NO/RIPASSO), Preferito (SI/NO), Frasi personali. Ricaricalo nella prossima sessione per continuare da dove hai lasciato.
+          </p>
+        </div>
+
         <div className="space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <button
@@ -2309,7 +2318,6 @@ export default function LessicoGame() {
             </div>
           )}
         </div>
-        <p className="text-slate-500 text-xs mt-2">💡 Usa "Copia" per incollare velocemente preferiti, ripasso e frasi personali in un documento. Usa "Scarica" per salvare come file e ricaricare i progressi.</p>
       </div>
     );
 
