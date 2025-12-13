@@ -1058,6 +1058,10 @@ export default function LessicoGame() {
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     setIsTimerRunning(false);
+    // Reset consultation filters when starting mode
+    setConsultLetters(['all']);
+    setConsultFavorites(false);
+    setConsultOrder('alpha');
   };
 
   const startConsultationFlashcard = (showDefinitionOnly = false) => {
@@ -1081,6 +1085,10 @@ export default function LessicoGame() {
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     setIsTimerRunning(false);
+    // Reset consultation filters when starting mode
+    setConsultLetters(['all']);
+    setConsultFavorites(false);
+    setConsultOrder('alpha');
   };
 
   const startPersonalSentences = () => {
@@ -1103,6 +1111,10 @@ export default function LessicoGame() {
     setWaitingForContinue(false);
     setShowCorrectAnswer(null);
     setIsTimerRunning(false);
+    // Reset consultation filters when starting mode
+    setConsultLetters(['all']);
+    setConsultFavorites(false);
+    setConsultOrder('alpha');
   };
 
   // Inizia nuovo gioco
