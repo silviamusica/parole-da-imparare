@@ -196,7 +196,7 @@ export default function LessicoGame() {
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(null);
   const [flashcardChoice, setFlashcardChoice] = useState(null);
   const [personalSentenceSelected, setPersonalSentenceSelected] = useState(null);
-  const [showPersonalDetails, setShowPersonalDetails] = useState(true);
+  const [showPersonalDetails, setShowPersonalDetails] = useState(false);
   const [subsetMode, setSubsetMode] = useState('all'); // all | chunk
   const [chunkPercent, setChunkPercent] = useState(10); // 10,20,33,50
   const [chunkIndex, setChunkIndex] = useState(0);
@@ -875,23 +875,106 @@ export default function LessicoGame() {
             ✕
           </button>
         </div>
-        <div className="space-y-4 text-sm text-slate-200 leading-relaxed">
+        <div className="space-y-5 text-sm text-slate-200 leading-relaxed">
           <div>
-            <p className="font-semibold">1. 🔍 Filtri</p>
-            <p>Se lasci “tutte”, usi l’intero database. Per uno studio più focalizzato, puoi filtrare per:</p>
-            <ul className="list-disc list-inside space-y-1 mt-1 text-slate-300">
-              <li>🔁 ripasso (errori o parole segnate durante il gioco)</li>
-              <li>📊 stadio di apprendimento (apprese, non apprese, ripasso)</li>
-              <li>📅 data di inserimento nel database</li>
+            <p className="font-semibold text-base mb-2">👋 Benvenuto!</p>
+            <p className="text-slate-300">Questa app ti aiuta a studiare il lessico italiano in modo efficace. Inizia importando il tuo file CSV con le parole, poi scegli come studiare.</p>
+          </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="font-semibold text-base mb-2">📂 1. Importa le parole</p>
+            <p className="text-slate-300">Carica un file CSV con le tue parole. Serve un file con 16 colonne in ordine:</p>
+            <div className="text-xs font-mono bg-slate-800 p-2 rounded mt-2 text-slate-400 leading-relaxed">
+              <p>Data, Termine*, Accento, Definizione*,</p>
+              <p>Sinonimi, Contrari, Etimologia,</p>
+              <p>Esempio1, Esempio2, Esempio3,</p>
+              <p>Frequenza, Tecnico, Errori,</p>
+              <p>APPRESO, Preferito, Frasi personali</p>
+              <p className="text-slate-500 mt-1">* = obbligatorio</p>
+            </div>
+            <p className="text-slate-300 mt-2 text-xs">💡 Se un campo è vuoto, lascialo vuoto (non spostare i valori!).</p>
+          </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="font-semibold text-base mb-2">🎯 2. Imposta i filtri (opzionale)</p>
+            <p className="text-slate-300">Clicca "Imposta i filtri" per concentrarti su un sottoinsieme di parole:</p>
+            <ul className="list-none space-y-1.5 mt-2 text-slate-300">
+              <li><strong>• Lettere:</strong> filtra per iniziale alfabetica</li>
+              <li><strong>• Preferiti:</strong> solo parole che hai contrassegnato con ❤️</li>
+              <li><strong>• Ripasso:</strong> solo parole che hai aggiunto alla lista ripasso</li>
+              <li><strong>• Stadio:</strong> apprese, non apprese, o in ripasso</li>
+              <li><strong>• Ultime inserite:</strong> per data di inserimento</li>
+              <li><strong>• Tranche:</strong> dividi in gruppi (10%, 20%, 33%, 50%)</li>
+            </ul>
+            <p className="text-slate-300 mt-2 text-xs">💡 Se non imposti filtri, lavori su tutte le parole.</p>
+          </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="font-semibold text-base mb-2">📚 3. Scegli come studiare</p>
+            <p className="text-slate-300 mb-2">Hai tre sezioni principali:</p>
+
+            <div className="space-y-3">
+              <div className="bg-slate-800/50 rounded-lg p-3">
+                <p className="font-semibold text-cyan-300">a) Studio</p>
+                <p className="text-slate-300 text-xs mt-1">Quattro modalità per esplorare le parole:</p>
+                <ul className="list-none space-y-1 mt-2 text-slate-400 text-xs">
+                  <li><strong>Vista Schede:</strong> elenco completo con definizioni, sinonimi, esempi ed etimologia</li>
+                  <li><strong>Flashcard Termine:</strong> mostra la parola, clicca per vedere la definizione</li>
+                  <li><strong>Flashcard Definizione:</strong> mostra la definizione, clicca per scoprire la parola</li>
+                  <li><strong>Frasi Personali:</strong> scrivi e salva le tue frasi usando le parole del vocabolario</li>
+                </ul>
+                <p className="text-slate-300 text-xs mt-2">💡 In ogni modalità puoi aggiungere parole ai Preferiti ❤️ o al Ripasso.</p>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-3">
+                <p className="font-semibold text-green-300">b) Giochi</p>
+                <p className="text-slate-300 text-xs mt-1">Quattro giochi per mettere alla prova la memoria:</p>
+                <ul className="list-none space-y-1 mt-2 text-slate-400 text-xs">
+                  <li><strong>Quiz:</strong> scegli la definizione corretta tra 4 opzioni</li>
+                  <li><strong>Completa la frase:</strong> inserisci la parola mancante</li>
+                  <li><strong>Memory:</strong> abbina termini e definizioni</li>
+                  <li><strong>Costruisci frasi:</strong> usa la parola in una frase sensata</li>
+                </ul>
+                <p className="text-slate-300 text-xs mt-2">💡 Le parole sbagliate vengono automaticamente aggiunte al Ripasso.</p>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-3">
+                <p className="font-semibold text-amber-300">c) Risultati</p>
+                <p className="text-slate-300 text-xs mt-1">Gestisci i tuoi progressi con tre liste:</p>
+                <ul className="list-none space-y-1 mt-2 text-slate-400 text-xs">
+                  <li><strong>Ripasso:</strong> parole che hai segnato per ripassare</li>
+                  <li><strong>Risposte corrette:</strong> ultime risposte giuste nei giochi</li>
+                  <li><strong>Apprese:</strong> parole marcate come "apprese"</li>
+                </ul>
+                <p className="text-slate-300 text-xs mt-2">💡 Da qui puoi esportare tutto in CSV/TXT per salvare i progressi.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="font-semibold text-base mb-2">⚡ 4. Filtri rapidi (Studio e Frasi personali)</p>
+            <p className="text-slate-300 text-xs">In cima alla pagina trovi i filtri rapidi per concentrarti al volo:</p>
+            <ul className="list-none space-y-1 mt-2 text-slate-400 text-xs">
+              <li><strong>Lettere:</strong> clicca per filtrare per iniziale</li>
+              <li><strong>Alfabetico/Casuale:</strong> cambia l'ordine di visualizzazione</li>
+              <li><strong>Preferiti:</strong> mostra solo parole con ❤️</li>
+              <li><strong>Ripasso:</strong> mostra solo parole da ripassare</li>
+              <li><strong>Reset:</strong> rimuovi tutti i filtri</li>
             </ul>
           </div>
-          <div className="border-t border-slate-700 pt-4 space-y-2">
-            <p className="font-semibold">2. 📑 Le tre tab</p>
-            <div className="space-y-2 text-slate-300">
-              <p><strong>a) Studio</strong>: scegli tra Vista Schede (elenco con definizioni, etimologia ed esempi), Flashcard termine (mostra il lemma, clicca per leggere definizione e dettagli), Flashcard definizione (mostra solo la definizione, clicca per scoprire il lemma e i dettagli) oppure Frasi personali (scrivi e salva le tue frasi per ogni parola); da qui puoi aggiungere parole alla sezione Risultati.</p>
-              <p><strong>b) Giochi</strong>: Quiz, Completa, Memory e Frasi usano sempre il set filtrato; ideali per metterti alla prova e ripassare, dopo lo studio.</p>
-              <p><strong>c) Risultati</strong>: qui trovi tre liste: “Ripasso” (parole che hai contrassegnato in questa sessione), “Risposte corrette” (le ultime giuste nei giochi) e “Apprese” (contrassegnate come SI). Puoi spostare le parole tra gli stati, esportare CSV/TXT con i contrassegni aggiornati e ricaricarli nelle sessioni future.</p>
-            </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="font-semibold text-base mb-2">💾 5. Esporta i progressi</p>
+            <p className="text-slate-300 text-xs">Vai su "Risultati" e clicca "Esporta" per salvare:</p>
+            <ul className="list-none space-y-1 mt-2 text-slate-400 text-xs">
+              <li><strong>CSV:</strong> tutte le parole con i campi aggiornati (Appreso, Preferito, Frasi personali)</li>
+              <li><strong>TXT:</strong> lista leggibile con parole da ripassare e frasi personali</li>
+            </ul>
+            <p className="text-slate-300 text-xs mt-2">💡 Ricarica il CSV esportato nella prossima sessione per riprendere da dove hai lasciato!</p>
+          </div>
+
+          <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mt-4">
+            <p className="text-cyan-200 text-xs">🎯 <strong>Suggerimento:</strong> Inizia con "Studio → Vista Schede" per familiarizzare con le parole, poi passa a "Flashcard" per memorizzare, e infine ai "Giochi" per consolidare!</p>
           </div>
         </div>
       </div>
@@ -2439,17 +2522,17 @@ export default function LessicoGame() {
             </div>
 
             <div className="space-y-3">
-              <p className="text-slate-300 text-sm">Scegli quante parole includere nella tua sessione di studio e gioco.</p>
+              <p className="text-slate-300 text-sm">Filtra le parole per concentrarti su un sottoinsieme specifico. I filtri si combinano tra loro.</p>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-slate-200">
-                    Selezionate: <span className="font-semibold text-cyan-300">{filteredPool.length}</span>
+                    Parole attive: <span className="font-semibold text-cyan-300">{filteredPool.length}</span>
                   </span>
                 </div>
               </div>
               <div className="border-t border-slate-700/50 my-4"></div>
               <div className="grid gap-3">
-                <p className="text-slate-400 text-xs px-1 mb-0.5 mt-5">Tranche percentuale: scegli la fetta di parole da usare (se non selezioni, usi tutte).</p>
+                <p className="text-slate-400 text-xs px-1 mb-0.5 mt-5">Dividi le parole in gruppi più piccoli (es: studia il 10% alla volta invece di tutte insieme).</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/** Calcolo disponibilità tranche */}
                   {(() => {
@@ -2503,7 +2586,7 @@ export default function LessicoGame() {
                 )}
               </div>
 
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Lettere: filtra per iniziale alfabetica.</div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Mostra solo parole che iniziano con lettere specifiche (es: solo A, B, C).</div>
               <div className="relative">
                 <button
                   onClick={() => setShowLetterPicker(prev => !prev)}
@@ -2552,7 +2635,7 @@ export default function LessicoGame() {
                   </>
                 )}
               </div>
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Preferiti: le parole che hai contrassegnato con il cuore.</div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Mostra solo le parole che hai salvato come preferite cliccando il cuore ❤️.</div>
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Preferiti</span>
@@ -2573,7 +2656,7 @@ export default function LessicoGame() {
                   aria-label={`Filtra solo preferiti (${favorites.size} parole)`}
                 />
               </label>
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Ripasso: attiva solo le parole che hai segnato "Ripasso" in questa sessione<br />(esclude quelle già marcate nel CSV, se non le hai aggiunte ora).</div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Mostra solo le parole che hai aggiunto al Ripasso cliccando "+ Ripasso" durante studio o giochi.</div>
               <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Ripasso</span>
@@ -2588,7 +2671,7 @@ export default function LessicoGame() {
                 />
               </label>
 
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Filtra per stadio di apprendimento.</div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Filtra in base allo stato di apprendimento salvato nel CSV (colonna "APPRESO").</div>
               <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Stadio di apprendimento</span>
@@ -2606,7 +2689,7 @@ export default function LessicoGame() {
                 </select>
               </div>
 
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Limita alle parole inserite in un determinato lasso di tempo.</div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Mostra solo parole aggiunte di recente (in base alla colonna "Data di inserimento" del CSV).</div>
               <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Ultime inserite</span>
@@ -3628,6 +3711,11 @@ export default function LessicoGame() {
     // State locale per l'input - evita re-render del componente principale
     const [localSentenceInput, setLocalSentenceInput] = useState('');
 
+    // Resetta la visualizzazione definizione quando entra nella modalità
+    useEffect(() => {
+      setShowPersonalDetails(false);
+    }, []);
+
     // Usa sempre filteredPool per rispettare i filtri lettere/preferiti in tempo reale
     const orderedPool = useMemo(
       () => [...filteredPool].sort((a, b) => (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })),
@@ -3684,7 +3772,10 @@ export default function LessicoGame() {
         <div className="max-w-5xl mx-auto pt-6 space-y-5">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => setGameMode(null)}
+              onClick={() => {
+                setGameMode(null);
+                setShowPersonalDetails(false);
+              }}
               className="bg-amber-400 hover:bg-amber-300 text-slate-900 px-3 py-2 rounded-xl font-semibold transition border border-amber-200 shadow-[0_10px_30px_-12px_rgba(251,191,36,0.7)]"
             >
               ← Menu
@@ -3698,7 +3789,10 @@ export default function LessicoGame() {
           <div>
             <h2 className="text-3xl font-bold text-slate-100">Frasi personali</h2>
             <p className="text-slate-400 text-sm">
-              Scegli una parola, scrivi le tue frasi e salvale. Finiranno nella colonna “Frasi personali” del CSV e nella sezione TXT dedicata.
+              Usa le parole del vocabolario per scrivere le tue frasi.
+            </p>
+            <p className="text-slate-400 text-sm mt-1">
+              Le frasi vengono salvate e incluse quando esporti in CSV o TXT.
             </p>
           </div>
 
@@ -3873,68 +3967,6 @@ export default function LessicoGame() {
                     </button>
                   </div>
                 </div>
-
-                {selectedWord && (
-                  <div className="mt-4">
-                    <button
-                      onClick={() => setShowPersonalDetails(prev => !prev)}
-                      className="text-sm text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
-                    >
-                      {showPersonalDetails ? 'Nascondi scheda' : 'Mostra scheda'}
-                    </button>
-                    {showPersonalDetails && (
-                      <div className="mt-3 bg-slate-900/60 border border-slate-700 rounded-2xl p-4 space-y-2 shadow-inner">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 className="text-xl font-bold text-slate-100">{selectedWord.term}</h3>
-                            {selectedWord.accent && (
-                              <p className="text-slate-400 text-sm">Accento: {selectedWord.accent}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Heart className={`w-4 h-4 ${isFav ? 'fill-amber-400 text-amber-400' : 'text-slate-500'}`} />
-                            {inReview && (
-                              <span className="text-xs text-amber-200 bg-amber-500/20 border border-amber-300/50 px-2 py-0.5 rounded-full">Ripasso</span>
-                            )}
-                          </div>
-                        </div>
-                        {selectedWord.definition && (
-                          <p className="text-slate-200 leading-relaxed">{selectedWord.definition}</p>
-                        )}
-                        {(() => {
-                          const syn = cleanOptionalField(selectedWord.synonyms);
-                          const ant = cleanOptionalField(selectedWord.antonyms);
-                          if (!syn && !ant) return null;
-                          return (
-                            <div className="text-slate-300 text-sm space-y-1">
-                              {syn && <p><span className="font-semibold">Sinonimi:</span> {syn}</p>}
-                              {ant && <p><span className="font-semibold">Contrari:</span> {ant}</p>}
-                            </div>
-                          );
-                        })()}
-                        {selectedWord.etymology && (
-                          <p className="text-slate-400 text-sm italic">{selectedWord.etymology}</p>
-                        )}
-                        {(() => {
-                          const freq = cleanOptionalField(selectedWord.frequencyUsage);
-                          const tech = cleanOptionalField(selectedWord.technical);
-                          if (!freq && !tech) return null;
-                          return (
-                            <div className="text-slate-400 text-xs space-y-1">
-                              {freq && <p>Frequenza d'uso: {freq}</p>}
-                              {tech && <p>Linguaggio tecnico: {tech}</p>}
-                            </div>
-                          );
-                        })()}
-                        {(() => {
-                          const examples = getExamples(selectedWord);
-                          if (!examples.length) return null;
-                          return <ExamplesBlock word={selectedWord} />;
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               <div className="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-4 space-y-3">
@@ -3966,7 +3998,7 @@ export default function LessicoGame() {
                   </div>
                 )}
                 <p className="text-slate-500 text-xs">
-                  Le frasi vengono salvate in questa sessione e, se esporti in CSV/TXT, finiranno anche nella colonna “Frasi personali” e nella sezione dedicata.
+                  💡 Le frasi restano salvate finché non ricarichi la pagina. Esporta in CSV o TXT per conservarle permanentemente.
                 </p>
               </div>
             </div>
@@ -4253,13 +4285,60 @@ export default function LessicoGame() {
                 ✕
               </button>
             </div>
-            <div className="space-y-2 text-sm leading-relaxed text-slate-200">
-              <p>Scarica il modello CSV già pronto: ha intestazione, valori preimpostati e una riga di esempio.</p>
-              <p>Mantieni l’ordine delle 16 colonne: Data di inserimento, Termine, Accento, Definizione, Sinonimi, Contrari, Etimologia, Esempio 1, Esempio 2, Esempio 3, Frequenza d'uso, Linguaggio tecnico, Errori, APPRESO, Preferito, Frasi personali.</p>
-              <p>Non è obbligatorio compilare tutto: indispensabili solo “Termine” e “Definizione”; le altre colonne possono restare vuote.</p>
-              <p>Esporta/salva come CSV UTF-8 con separatore virgola (no “;” o tab).</p>
-              <p>Formati: Data in GG-MM-AA o vuota; APPRESO = SI/NO/RIPASSO; Preferito = SI/NO; Sinonimi/Contrari separati da “;”; Errori = descrizione o “NO”; Frasi personali separate da “;”.</p>
-              <p className="text-slate-400">Suggerimento: da Google Sheet/Excel/LibreOffice/Numbers scegli “Esporta/Salva come CSV” e non modificare l’intestazione.</p>
+            <div className="space-y-4 text-sm leading-relaxed text-slate-200">
+              <div>
+                <p className="font-semibold mb-2">📥 Come iniziare</p>
+                <p className="text-slate-300">Scarica il modello CSV cliccando "Scarica il modello" nella schermata principale. È già pronto con tutte le intestazioni e una riga di esempio.</p>
+              </div>
+
+              <div className="border-t border-slate-700 pt-3">
+                <p className="font-semibold mb-2">📋 Struttura del CSV (16 colonne)</p>
+                <div className="bg-slate-800 p-3 rounded-lg text-xs font-mono text-slate-400">
+                  <p>1. Data di inserimento</p>
+                  <p>2. Termine (obbligatorio)</p>
+                  <p>3. Accento</p>
+                  <p>4. Definizione (obbligatorio)</p>
+                  <p>5. Sinonimi</p>
+                  <p>6. Contrari</p>
+                  <p>7. Etimologia</p>
+                  <p>8. Esempio 1</p>
+                  <p>9. Esempio 2</p>
+                  <p>10. Esempio 3</p>
+                  <p>11. Frequenza d'uso</p>
+                  <p>12. Linguaggio tecnico</p>
+                  <p>13. Errori</p>
+                  <p>14. APPRESO</p>
+                  <p>15. Preferito</p>
+                  <p>16. Frasi personali</p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-700 pt-3">
+                <p className="font-semibold mb-2">✅ Regole importanti</p>
+                <ul className="space-y-1 text-slate-300 text-xs">
+                  <li>• Solo <strong>"Termine"</strong> e <strong>"Definizione"</strong> sono obbligatori</li>
+                  <li>• Se un campo è vuoto, lascialo vuoto (non spostare i valori!)</li>
+                  <li>• Mantieni sempre l'ordine delle 16 colonne</li>
+                  <li>• Usa la virgola "," come separatore (no ";" o tab)</li>
+                  <li>• Salva come <strong>CSV UTF-8</strong></li>
+                </ul>
+              </div>
+
+              <div className="border-t border-slate-700 pt-3">
+                <p className="font-semibold mb-2">📝 Formati dei campi</p>
+                <ul className="space-y-1 text-slate-300 text-xs">
+                  <li>• <strong>Data:</strong> formato GG-MM-AA (es: 15-03-24) oppure vuoto</li>
+                  <li>• <strong>APPRESO:</strong> SI, NO o RIPASSO</li>
+                  <li>• <strong>Preferito:</strong> SI o NO</li>
+                  <li>• <strong>Sinonimi/Contrari:</strong> separati da ";" (es: bello;carino)</li>
+                  <li>• <strong>Errori:</strong> descrizione testuale oppure "NO"</li>
+                  <li>• <strong>Frasi personali:</strong> separate da ";" (es: frase 1;frase 2)</li>
+                </ul>
+              </div>
+
+              <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3">
+                <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> Da Google Sheets, Excel, LibreOffice o Numbers, scegli "File → Scarica/Esporta → CSV" e seleziona UTF-8. Non modificare l'intestazione!</p>
+              </div>
             </div>
           </div>
         </div>
