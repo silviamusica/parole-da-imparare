@@ -1949,8 +1949,28 @@ export default function LessicoGame() {
         </div>
         <h1 className="text-3xl font-bold text-slate-100 mb-2">Giochi di parole</h1>
         <p className="text-slate-400 mb-5">Impara parole nuove giocando!</p>
-        
-        <div className="space-y-2">
+
+        <div className="space-y-3">
+          <p className="text-slate-200 font-normal text-base text-center">Prova subito la demo, o inizia con il tuo vocabolario.</p>
+
+          <button
+            onClick={loadDemoWords}
+            className="w-full bg-orange-500 text-white font-semibold px-4 py-3 rounded-xl transition-colors shadow-[0_6px_14px_-10px_rgba(249,115,22,0.5)] flex items-center justify-center gap-2 border border-orange-400/60"
+          >
+            <Sparkles className="w-5 h-5" aria-hidden="true" />
+            <span>Prova demo (50 parole)</span>
+          </button>
+
+          <button
+            onClick={() => downloadFile('csv_empty')}
+            className="w-full bg-cyan-900 text-slate-50 font-semibold px-4 py-3 rounded-xl shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)] border border-cyan-800/60 flex items-center justify-center gap-2"
+          >
+            <Download className="w-5 h-5" aria-hidden="true" />
+            <span>Scarica il modello</span>
+          </button>
+        </div>
+
+        <div className="mt-6 space-y-2">
           <div className="flex items-center justify-center gap-3">
             <p className="text-slate-200 font-normal text-base">Carica il tuo CSV</p>
             <button
@@ -1977,27 +1997,6 @@ export default function LessicoGame() {
             </div>
             <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
           </label>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <div className="leading-tight">
-            <p className="text-slate-200 font-normal text-base">Scarica il modello CSV da personalizzare,</p>
-            <p className="text-slate-200 font-normal text-base">oppure prova subito la demo.</p>
-          </div>
-          <button
-            onClick={() => downloadFile('csv_empty')}
-            className="w-full bg-cyan-900 text-slate-50 font-semibold px-4 py-3 rounded-xl shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)] border border-cyan-800/60 flex items-center justify-center gap-2"
-          >
-            <Download className="w-5 h-5" aria-hidden="true" />
-            <span>Scarica il modello</span>
-          </button>
-          <button
-            onClick={loadDemoWords}
-            className="w-full bg-orange-500 text-white font-semibold px-4 py-3 rounded-xl transition-colors shadow-[0_6px_14px_-10px_rgba(249,115,22,0.5)] flex items-center justify-center gap-2 border border-orange-400/60"
-          >
-            <Sparkles className="w-5 h-5" aria-hidden="true" />
-            <span>Prova demo (50 parole)</span>
-          </button>
         </div>
       </div>
     </div>
