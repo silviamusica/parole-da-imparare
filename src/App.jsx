@@ -193,6 +193,11 @@ export default function LessicoGame() {
   const [copyFeedback, setCopyFeedback] = useState('');
   const [exportFormat, setExportFormat] = useState('text');
   const [showExportFormatPicker, setShowExportFormatPicker] = useState(false);
+  const [exportIncludeRipasso, setExportIncludeRipasso] = useState(true);
+  const [exportIncludePreferite, setExportIncludePreferite] = useState(true);
+  const [exportIncludeCorrette, setExportIncludeCorrette] = useState(true);
+  const [exportIncludeApprese, setExportIncludeApprese] = useState(true);
+  const [exportIncludeFrasi, setExportIncludeFrasi] = useState(true);
   const [waitingForContinue, setWaitingForContinue] = useState(false);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(null);
   const [flashcardChoice, setFlashcardChoice] = useState(null);
@@ -1511,13 +1516,14 @@ export default function LessicoGame() {
         ].join('\n') + '\n';
       };
 
-      return [
-        sectionText('Ripasso', ripasso),
-        sectionText('Preferite', preferite),
-        compactListText('Risposte corrette', risposteCorrette),
-        compactListText('Apprese', apprese),
-        sentencesText()
-      ].join('\n');
+      const sections = [];
+      if (exportIncludeRipasso) sections.push(sectionText('Ripasso', ripasso));
+      if (exportIncludePreferite) sections.push(sectionText('Preferite', preferite));
+      if (exportIncludeCorrette) sections.push(compactListText('Risposte corrette', risposteCorrette));
+      if (exportIncludeApprese) sections.push(compactListText('Apprese', apprese));
+      if (exportIncludeFrasi) sections.push(sentencesText());
+
+      return sections.join('\n');
     } else if (format === 'csv') {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere (nuovo schema)
       const header = "Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali\n";
@@ -2286,11 +2292,62 @@ export default function LessicoGame() {
 
         <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-3 mb-3">
           <p className="text-slate-300 text-xs leading-relaxed mb-2">
-            <strong className="text-cyan-300">📋 Copia negli appunti (TXT):</strong> Include Ripasso, Preferite, Risposte corrette (dalla sessione), Apprese (dal CSV) e Frasi personali. Ideale per studiare o condividere velocemente.
+            <strong className="text-cyan-300">📋 Copia negli appunti (TXT):</strong> Include le sezioni selezionate sotto. Ideale per studiare o condividere velocemente.
           </p>
           <p className="text-slate-300 text-xs leading-relaxed">
             <strong className="text-cyan-300">💾 Scarica CSV:</strong> Tutto il vocabolario con colonne aggiornate: APPRESO (SI/NO/RIPASSO), Preferito (SI/NO), Frasi personali. Ricaricalo nella prossima sessione per continuare da dove hai lasciato.
           </p>
+        </div>
+
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-lg p-3 mb-3">
+          <p className="text-slate-300 text-xs font-semibold mb-2">Cosa includere nell'export TXT:</p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer hover:text-cyan-300 transition">
+              <input
+                type="checkbox"
+                checked={exportIncludeRipasso}
+                onChange={(e) => setExportIncludeRipasso(e.target.checked)}
+                className="accent-cyan-500"
+              />
+              Ripasso
+            </label>
+            <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer hover:text-cyan-300 transition">
+              <input
+                type="checkbox"
+                checked={exportIncludePreferite}
+                onChange={(e) => setExportIncludePreferite(e.target.checked)}
+                className="accent-cyan-500"
+              />
+              Preferite
+            </label>
+            <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer hover:text-cyan-300 transition">
+              <input
+                type="checkbox"
+                checked={exportIncludeCorrette}
+                onChange={(e) => setExportIncludeCorrette(e.target.checked)}
+                className="accent-cyan-500"
+              />
+              Risposte corrette
+            </label>
+            <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer hover:text-cyan-300 transition">
+              <input
+                type="checkbox"
+                checked={exportIncludeApprese}
+                onChange={(e) => setExportIncludeApprese(e.target.checked)}
+                className="accent-cyan-500"
+              />
+              Apprese
+            </label>
+            <label className="flex items-center gap-2 text-slate-300 text-xs cursor-pointer hover:text-cyan-300 transition col-span-2">
+              <input
+                type="checkbox"
+                checked={exportIncludeFrasi}
+                onChange={(e) => setExportIncludeFrasi(e.target.checked)}
+                className="accent-cyan-500"
+              />
+              Frasi personali
+            </label>
+          </div>
         </div>
 
         <div className="space-y-3">
