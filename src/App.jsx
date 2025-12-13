@@ -1475,10 +1475,16 @@ export default function LessicoGame() {
       const ripasso = alpha(words.filter(w => w.appreso === 'RIPASSO'));
       const daRivedere = alpha(wordsToReview);
       const withSentences = alpha(words.filter(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0));
+      const risposteCorrette = alpha(words.filter(w => masteredWords.has(w.term)));
 
       const sectionText = (title, list) => {
         if (!list.length) return `${title}:\n(nessuna)\n`;
         return `${title}:\n${list.map(w => `• ${w.term}${w.accent ? ` (${w.accent})` : ''} — ${w.definition || ''}`).join('\n')}\n`;
+      };
+
+      const compactListText = (title, list) => {
+        if (!list.length) return `${title}:\n(nessuna)\n`;
+        return `${title}:\n${list.map(w => w.term).join(', ')}\n`;
       };
 
       const sentencesText = () => {
@@ -1496,6 +1502,7 @@ export default function LessicoGame() {
         sectionText('Da rivedere', daRivedere),
         sectionText('Da ripassare', ripasso),
         sectionText('Preferite', preferite),
+        compactListText('Risposte corrette', risposteCorrette),
         sentencesText()
       ].join('\n');
     } else if (format === 'csv') {
@@ -1561,11 +1568,11 @@ export default function LessicoGame() {
   // Copia negli appunti con feedback
   const copyToClipboard = async (format) => {
     // Verifica se ci sono dati da copiare
-    const hasData = favorites.size > 0 || wordsToReview.length > 0 ||
+    const hasData = favorites.size > 0 || wordsToReview.length > 0 || masteredWords.size > 0 ||
                     words.some(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0);
 
     if (!hasData) {
-      setCopyFeedback('✗ Nessun contenuto da copiare: aggiungi preferiti, ripasso o frasi personali prima.');
+      setCopyFeedback('✗ Nessun contenuto da copiare: aggiungi preferiti, ripasso, risposte corrette o frasi personali prima.');
       setTimeout(() => setCopyFeedback(''), 4000);
       return;
     }
