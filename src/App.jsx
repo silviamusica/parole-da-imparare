@@ -1517,13 +1517,13 @@ export default function LessicoGame() {
       };
 
       const sections = [];
-      if (exportIncludeRipasso) sections.push(sectionText('Ripasso', ripasso));
-      if (exportIncludePreferite) sections.push(sectionText('Preferite', preferite));
-      if (exportIncludeCorrette) sections.push(compactListText('Risposte corrette', risposteCorrette));
-      if (exportIncludeApprese) sections.push(compactListText('Apprese', apprese));
-      if (exportIncludeFrasi) sections.push(sentencesText());
+      if (exportIncludeRipasso && ripasso.length > 0) sections.push(sectionText('Ripasso', ripasso));
+      if (exportIncludePreferite && preferite.length > 0) sections.push(sectionText('Preferite', preferite));
+      if (exportIncludeCorrette && risposteCorrette.length > 0) sections.push(compactListText('Risposte corrette', risposteCorrette));
+      if (exportIncludeApprese && apprese.length > 0) sections.push(compactListText('Apprese', apprese));
+      if (exportIncludeFrasi && withSentences.length > 0) sections.push(sentencesText());
 
-      return sections.join('\n');
+      return sections.length > 0 ? sections.join('\n') : '';
     } else if (format === 'csv') {
       // CSV completo con tutte le parole e indicazione di quali sono da rivedere (nuovo schema)
       const header = "Data di inserimento,Termine,Accento,Definizione,Sinonimi,Contrari,Etimologia,Esempio 1,Esempio 2,Esempio 3,Frequenza d'uso,Linguaggio tecnico,Errori,APPRESO,Preferito,Frasi personali\n";
@@ -1596,32 +1596,23 @@ export default function LessicoGame() {
       return;
     }
 
-    // Verifica se ci sono dati da copiare nelle sezioni selezionate
-    const ripassoFromCSV = words.filter(w => w.appreso === 'RIPASSO');
-    const allRipasso = [...new Map([...wordsToReview, ...ripassoFromCSV].map(w => [w.term, w])).values()];
-    const apprese = words.filter(w => w.learned || w.appreso === 'SI');
-    const withSentences = words.filter(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0);
-
-    const hasData = (exportIncludeRipasso && allRipasso.length > 0) ||
-                    (exportIncludePreferite && favorites.size > 0) ||
-                    (exportIncludeCorrette && masteredWords.size > 0) ||
-                    (exportIncludeApprese && apprese.length > 0) ||
-                    (exportIncludeFrasi && withSentences.length > 0);
-
-    if (!hasData) {
-      setCopyFeedback('✗ Nessun contenuto disponibile nelle sezioni selezionate.');
-      setTimeout(() => setCopyFeedback(''), 3000);
-      return;
-    }
-
     try {
       const text = formatWordsForExport(format);
+
+      // Verifica se il testo generato è vuoto
+      if (!text || text.trim().length === 0) {
+        setCopyFeedback('✗ Nessun contenuto disponibile nelle sezioni selezionate.');
+        setTimeout(() => setCopyFeedback(''), 3000);
+        return;
+      }
+
       await navigator.clipboard.writeText(text);
       setCopyFeedback('✓ Contenuto copiato negli appunti!');
       setTimeout(() => setCopyFeedback(''), 2000);
     } catch (err) {
-      setCopyFeedback('✗ Errore durante la copia: verifica i permessi del browser.');
-      setTimeout(() => setCopyFeedback(''), 3000);
+      console.error('Errore copia clipboard:', err);
+      setCopyFeedback(`✗ Errore: ${err.message || 'verifica i permessi del browser'}`);
+      setTimeout(() => setCopyFeedback(''), 4000);
     }
   };
 
