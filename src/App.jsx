@@ -192,6 +192,7 @@ export default function LessicoGame() {
   const [hintLevel, setHintLevel] = useState(0);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [exportFormat, setExportFormat] = useState('text');
+  const [showExportFormatPicker, setShowExportFormatPicker] = useState(false);
   const [waitingForContinue, setWaitingForContinue] = useState(false);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(null);
   const [flashcardChoice, setFlashcardChoice] = useState(null);
@@ -2255,26 +2256,15 @@ export default function LessicoGame() {
 
         <div className="space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
-            <label className="text-slate-400 text-sm flex-shrink-0">Formato:</label>
-            <select
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value)}
-              className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
-            >
-              <option value="text">TXT - Solo preferiti, ripasso e frasi personali</option>
-              <option value="csv">CSV - Tutto il vocabolario con progressi aggiornati</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
             <button
-              onClick={() => copyToClipboard(exportFormat)}
+              onClick={() => copyToClipboard('text')}
               className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 px-4 py-2 rounded-lg border border-slate-600 text-sm transition-colors flex items-center justify-center gap-2"
             >
               <Copy className="w-4 h-4" />
               Copia negli appunti
             </button>
             <button
-              onClick={() => downloadFile(exportFormat)}
+              onClick={() => setShowExportFormatPicker(prev => !prev)}
               className="flex-1 bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm transition-colors flex items-center justify-center gap-2"
             >
               <Download className="w-4 h-4" />
@@ -2284,8 +2274,29 @@ export default function LessicoGame() {
           {copyFeedback && (
             <p className="text-green-400 text-sm text-center">{copyFeedback}</p>
           )}
+          {showExportFormatPicker && (
+            <div className="space-y-2 pt-2 border-t border-slate-700">
+              <label className="text-slate-400 text-sm">Scegli formato da scaricare:</label>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => downloadFile('text')}
+                  className="bg-slate-800/70 hover:bg-slate-700 border border-slate-700 text-slate-100 rounded-lg px-4 py-2.5 text-sm transition-colors text-left"
+                >
+                  <div className="font-semibold">TXT</div>
+                  <div className="text-xs text-slate-400 mt-0.5">Solo preferiti, ripasso e frasi personali</div>
+                </button>
+                <button
+                  onClick={() => downloadFile('csv')}
+                  className="bg-slate-800/70 hover:bg-slate-700 border border-slate-700 text-slate-100 rounded-lg px-4 py-2.5 text-sm transition-colors text-left"
+                >
+                  <div className="font-semibold">CSV</div>
+                  <div className="text-xs text-slate-400 mt-0.5">Tutto il vocabolario con progressi aggiornati</div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        <p className="text-slate-500 text-xs mt-2">💡 Usa "Copia" per incollare velocemente in un documento, oppure "Scarica" per salvare come file e ricaricare i progressi.</p>
+        <p className="text-slate-500 text-xs mt-2">💡 Usa "Copia" per incollare velocemente preferiti, ripasso e frasi personali in un documento. Usa "Scarica" per salvare come file e ricaricare i progressi.</p>
       </div>
     );
 
