@@ -4451,7 +4451,7 @@ export default function LessicoGame() {
             className="bg-slate-900 rounded-3xl border border-slate-700 max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 text-slate-100 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between mb-4 sticky top-0 bg-slate-900 pb-2 -mt-6 pt-6 z-10">
+            <div className="flex items-start justify-between mb-4">
               <h2 className="text-2xl font-bold">Come preparare il CSV</h2>
               <button
                 onClick={() => setShowUploadInfo(false)}
