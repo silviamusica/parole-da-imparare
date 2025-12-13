@@ -1037,7 +1037,7 @@ export default function LessicoGame() {
       if (field) {
         const filtered = basePool.filter(w => cleanOptionalField(w[field]));
         if (filtered.length < 4) {
-          triggerSelectionWarning('Non ci sono abbastanza dati per questa modalità (serve almeno 4 parole con il campo compilato).');
+          triggerSelectionWarning('Non ci sono abbastanza dati per questa modalità (servono almeno 4 parole con il campo compilato).');
           setShowModeSelection(false);
           setPendingMode(null);
           return;
