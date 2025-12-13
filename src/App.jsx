@@ -359,65 +359,6 @@ export default function LessicoGame() {
     return parts.join(' | ') || 'Tutte';
   };
 
-  const LetterFilterControl = () => {
-    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-    return (
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setShowLetterPicker(prev => !prev)}
-          className="bg-slate-800/60 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-700 min-w-[180px] text-left flex items-center justify-between"
-          aria-expanded={showLetterPicker}
-          aria-label={`Filtra per lettere, attualmente selezionate: ${getLetterFilterLabel()}`}
-        >
-          <span className="text-xs tracking-wide text-slate-300">Lettere</span>
-          <span className="text-slate-100 font-semibold whitespace-nowrap">({getLetterFilterLabel()})</span>
-        </button>
-        {showLetterPicker && (
-          <>
-            <div
-              className="fixed inset-0 z-10"
-              onClick={() => setShowLetterPicker(false)}
-              aria-hidden="true"
-            />
-            <div className="absolute z-40 mt-2 bg-slate-900 border border-slate-700 rounded-xl p-3 shadow-xl w-64">
-              <div className="flex items-center justify-between mb-2">
-                <button
-                  className={`text-xs px-2 py-1 rounded border ${consultLetters.includes('all') ? 'border-amber-300 text-amber-200' : 'border-slate-600 text-slate-300 hover:border-slate-500'}`}
-                  onClick={() => toggleLetterFilter('all')}
-                >
-                  Tutte
-                </button>
-                <button
-                  className={`text-xs px-2 py-1 rounded border ${consultLetters.includes('fav') ? 'border-amber-300 text-amber-200' : 'border-slate-600 text-slate-300 hover:border-slate-500'}`}
-                  onClick={() => toggleLetterFilter('fav')}
-                >
-                  Preferiti
-                </button>
-              </div>
-              <div className="grid grid-cols-6 gap-1 text-slate-200 text-xs">
-                {letters.map(letter => {
-                  const active = consultLetters.includes(letter);
-                  return (
-                    <label key={letter} className={`flex items-center gap-1 px-1 py-0.5 rounded ${active ? 'bg-amber-500/20 text-amber-200' : 'hover:bg-slate-800'}`}>
-                      <input
-                        type="checkbox"
-                        className="accent-amber-400"
-                        checked={active}
-                        onChange={() => toggleLetterFilter(letter)}
-                      />
-                      <span className="uppercase">{letter}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
-
   // Effetti sonori semplici
   const playSound = () => {};
   const playCuteSound = () => {};
@@ -1751,14 +1692,6 @@ export default function LessicoGame() {
       <ChevronUp className="w-5 h-5" />
     </button>
   );
-
-  const resetConsultationState = () => {
-    setConsultLetters(['all']);
-    setConsultOrder('random');
-    setConsultOpenLetter(null);
-    setConsultFlashOpenLetter(null);
-    setConsultFlipped({});
-  };
 
   // Componente per mostrare risposta corretta e pulsante continua
   const AnswerDetailCard = ({ word, isCorrect, onContinue, continueHint = 'o premi Invio' }) => {
@@ -3832,8 +3765,7 @@ export default function LessicoGame() {
                   </button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-3">
-                <LetterFilterControl />
+              <div className="flex items-center gap-3">
                 <select
                   value={consultOrder}
                   onChange={(e) => setConsultOrder(e.target.value)}
@@ -3842,12 +3774,6 @@ export default function LessicoGame() {
                   <option value="random">Casuale</option>
                   <option value="alpha">Alfabetico</option>
                 </select>
-                <button
-                  onClick={resetConsultationState}
-                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
-                >
-                  Reset
-                </button>
               </div>
             </div>
           </div>
@@ -3994,15 +3920,6 @@ export default function LessicoGame() {
             <div className="space-y-4">
               <div className="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
                 <div className="flex flex-wrap gap-2 mb-4">
-                  <LetterFilterControl />
-                  <select
-                    value={consultOrder}
-                    onChange={(e) => setConsultOrder(e.target.value)}
-                    className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
-                  >
-                    <option value="random">Casuale</option>
-                    <option value="alpha">Alfabetico</option>
-                  </select>
                   <button
                     onClick={() => setConsultFavorites(prev => !prev)}
                     className={`px-3 py-2 rounded-xl text-sm border transition flex items-center gap-2 ${consultFavorites ? 'bg-amber-400 text-slate-900 border-amber-200 font-semibold' : 'bg-slate-900/70 text-slate-200 border-slate-700 hover:bg-slate-800'}`}
@@ -4017,12 +3934,6 @@ export default function LessicoGame() {
                     aria-label={`Filtra ripasso (${wordsToReview.length})`}
                   >
                     Ripasso ({wordsToReview.length})
-                  </button>
-                  <button
-                    onClick={resetConsultationState}
-                    className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
-                  >
-                    Reset
                   </button>
                 </div>
 
@@ -4201,15 +4112,9 @@ export default function LessicoGame() {
 
   // Consultation Flashcard Mode
   const ConsultationFlashcardMode = ({ showDefinitionFirst = false }) => {
-    let pool = activePool.length ? activePool : getFilteredWords();
-    const lettersOnly = consultLetters.filter(l => l !== 'all');
-    if (consultFavorites) {
-      pool = pool.filter(w => favorites.has(w.term) || w.favorite);
-    }
-    if (lettersOnly.length > 0) {
-      const setLetters = new Set(lettersOnly.map(l => l.toLowerCase()));
-      pool = pool.filter(w => setLetters.has((w.term?.[0] || '').toLowerCase()));
-    }
+    // Use activePool directly without applying consultation filters
+    // Consultation filters are only for ConsultationMode (Elenco)
+    const pool = activePool.length ? activePool : getFilteredWords();
 
     const { sections, total } = useMemo(() => {
       const grouped = pool.reduce((acc, word) => {
@@ -4239,14 +4144,14 @@ export default function LessicoGame() {
 
       const total = perLetter.reduce((sum, s) => sum + s.words.length, 0);
 
-      const combined = consultLetters.includes('all') && perLetter.length > 0 ? {
+      const combined = perLetter.length > 0 ? {
         letter: 'Tutte le lettere',
         words: orderWords(perLetter.flatMap(s => s.words)),
         combined: true
       } : null;
 
       return { sections: [combined, ...perLetter].filter(Boolean), total };
-    }, [pool, consultOrder, consultLetters]);
+    }, [pool, consultOrder]);
 
     const filteredCount = total;
 
@@ -4283,15 +4188,15 @@ export default function LessicoGame() {
                 ← Menu
               </button>
             </div>
-            <div className="flex flex-col gap-3">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-100">
-                  {showDefinitionFirst ? 'Flashcard definizione' : 'Flashcard termine'}
-                </h2>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <h2 className="text-3xl font-bold text-slate-100">
+                    {showDefinitionFirst ? 'Flashcard definizione' : 'Flashcard termine'}
+                  </h2>
                 <p className="text-slate-400 text-sm">
                   {showDefinitionFirst ? 'Vedi la definizione, clicca per scoprire il lemma.' : 'Vedi il lemma, clicca per definizione e dettagli.'}
                 </p>
-                <p className="text-slate-500 text-xs mt-1">Parole filtrate: {filteredCount}</p>
+                <p className="text-slate-500 text-xs mt-1">Totale parole: {filteredCount}</p>
                 {wordsToReview.length > 0 && (
                   <button
                     onClick={() => {
@@ -4304,23 +4209,16 @@ export default function LessicoGame() {
                     Ripasso: {wordsToReview.length}
                   </button>
                 )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <LetterFilterControl />
-                <select
-                  value={consultOrder}
-                  onChange={(e) => setConsultOrder(e.target.value)}
-                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm"
-                >
-                  <option value="random">Casuale</option>
-                  <option value="alpha">Alfabetico</option>
-                </select>
-                <button
-                  onClick={resetConsultationState}
-                  className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-sm hover:bg-slate-800"
-                >
-                  Reset
-                </button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <select
+                    value={consultOrder}
+                    onChange={(e) => setConsultOrder(e.target.value)}
+                    className="bg-slate-900/70 border border-slate-700 text-slate-100 rounded-xl px-3 py-2 text-xs"
+                  >
+                    <option value="random">Casuale</option>
+                    <option value="alpha">Alfabetico</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
