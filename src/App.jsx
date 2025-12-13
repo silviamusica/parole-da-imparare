@@ -500,7 +500,7 @@ export default function LessicoGame() {
     } catch {}
   };
 
-  // Reset tutti i filtri
+  // Reset tutti i filtri e torna al menu
   const resetAllFilters = () => {
     setSubsetMode('all');
     setChunkPercent(10);
@@ -512,7 +512,10 @@ export default function LessicoGame() {
     setConsultFavorites(false);
     setUseRecent(false);
     setRecentMode('count');
-    setActivePool([]); // Svuota activePool per riapplicare i filtri resettati
+    setActivePool([]);
+    setShowSelectionPanel(false); // Chiudi il pannello filtri
+    setGameMode(null); // Torna al menu principale
+    setShowModeSelection(false);
   };
 
   // Gestione upload file
