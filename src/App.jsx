@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
-import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronUp, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle, Download, Edit3 } from 'lucide-react';
+import { Upload, Shuffle, Eye, EyeOff, ChevronLeft, ChevronRight, ChevronUp, Check, X, Brain, Zap, RotateCcw, Trophy, Target, Clock, Flame, BookOpen, Sparkles, ArrowRight, Heart, HelpCircle, Download, Edit3, Copy } from 'lucide-react';
 import LogoVolpinaChiusi from '../volpina-occhi-chiusi.png';
 import LogoVolpinaOcchiAperti from '../volpina-occhi-aperti.png';
 import LogoVolpinaTestaAlzata from '../volpina-testa-alzata.png';
@@ -964,13 +964,13 @@ export default function LessicoGame() {
           </div>
 
           <div className="border-t border-slate-700 pt-4">
-            <p className="font-semibold text-base mb-2">💾 5. Esporta i progressi</p>
-            <p className="text-slate-300 text-xs">Vai su "Risultati" e clicca "Esporta" per salvare:</p>
-            <ul className="list-none space-y-1 mt-2 text-slate-400 text-xs">
-              <li><strong>CSV:</strong> tutte le parole con i campi aggiornati (Appreso, Preferito, Frasi personali)</li>
-              <li><strong>TXT:</strong> lista leggibile con parole da ripassare e frasi personali</li>
+            <p className="font-semibold text-base mb-2">💾 5. Esporta o copia i progressi</p>
+            <p className="text-slate-300 text-xs">Vai su "Risultati" per esportare il tuo lavoro:</p>
+            <ul className="list-none space-y-1.5 mt-2 text-slate-400 text-xs">
+              <li><strong>TXT:</strong> solo preferiti, ripasso e frasi personali (perfetto per studiare o condividere)</li>
+              <li><strong>CSV:</strong> tutto il vocabolario con progressi aggiornati (per ricaricare nella prossima sessione)</li>
             </ul>
-            <p className="text-slate-300 text-xs mt-2">💡 Ricarica il CSV esportato nella prossima sessione per riprendere da dove hai lasciato!</p>
+            <p className="text-slate-300 text-xs mt-2">💡 Usa <strong>"Copia negli appunti"</strong> per incollare velocemente in un documento, oppure <strong>"Scarica file"</strong> per salvare permanentemente.</p>
           </div>
 
           <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mt-4">
@@ -2253,24 +2253,39 @@ export default function LessicoGame() {
           </div>
         )}
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-slate-400 text-sm flex-shrink-0">Scarica:</label>
-          <select
-            value={exportFormat}
-            onChange={(e) => setExportFormat(e.target.value)}
-            className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
-          >
-            <option value="text">TXT (parole ripasso/errori)</option>
-            <option value="csv">CSV completo con errori/ripasso</option>
-          </select>
-          <button
-            onClick={() => downloadFile(exportFormat)}
-            className="bg-cyan-900 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm"
-          >
-            Scarica
-          </button>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="text-slate-400 text-sm flex-shrink-0">Formato:</label>
+            <select
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value)}
+              className="bg-slate-800/70 border border-slate-700 text-slate-100 rounded-lg px-3 py-2 text-sm flex-1"
+            >
+              <option value="text">TXT - Solo preferiti, ripasso e frasi personali</option>
+              <option value="csv">CSV - Tutto il vocabolario con progressi aggiornati</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => copyToClipboard(exportFormat)}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 px-4 py-2 rounded-lg border border-slate-600 text-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              Copia negli appunti
+            </button>
+            <button
+              onClick={() => downloadFile(exportFormat)}
+              className="flex-1 bg-cyan-900 hover:bg-cyan-800 text-slate-50 px-4 py-2 rounded-lg border border-cyan-800/60 text-sm transition-colors flex items-center justify-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Scarica file
+            </button>
+          </div>
+          {copyFeedback && (
+            <p className="text-green-400 text-sm text-center">{copyFeedback}</p>
+          )}
         </div>
-        <p className="text-slate-500 text-xs">Suggerimento: rinomina il file aggiungendo la data di oggi per ricordare quale versione stai usando quando lo ricarichi.</p>
+        <p className="text-slate-500 text-xs mt-2">💡 Usa "Copia" per incollare velocemente in un documento, oppure "Scarica" per salvare come file e ricaricare i progressi.</p>
       </div>
     );
 
