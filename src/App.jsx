@@ -294,16 +294,6 @@ export default function LessicoGame() {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [showLetterPicker, showSelectionPanel]);
 
-  // Reset consultation filters quando cambia gameMode
-  useEffect(() => {
-    const consultationModes = ['consultation', 'consultationFlashcard', 'consultationFlashcardDefinition', 'personalSentences'];
-    if (consultationModes.includes(gameMode)) {
-      setConsultLetters(['all']);
-      setConsultFavorites(false);
-      setConsultOrder('alpha');
-    }
-  }, [gameMode]);
-
   const computeChunkAvailability = useCallback((pool) => {
     const total = pool.length;
     return {
@@ -1057,6 +1047,10 @@ export default function LessicoGame() {
     const pool = current.sort((a, b) =>
       (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
     );
+    // Reset consultation filters BEFORE setting gameMode to avoid flash of filtered content
+    setConsultLetters(['all']);
+    setConsultFavorites(false);
+    setConsultOrder('alpha');
     setActivePool(pool);
     setShuffledWords(pool);
     setGameMode('consultation');
@@ -1080,6 +1074,10 @@ export default function LessicoGame() {
     const pool = current.sort((a, b) =>
       (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
     );
+    // Reset consultation filters BEFORE setting gameMode to avoid flash of filtered content
+    setConsultLetters(['all']);
+    setConsultFavorites(false);
+    setConsultOrder('alpha');
     setActivePool(pool);
     setShuffledWords(pool);
     setGameMode(showDefinitionOnly ? 'consultationFlashcardDefinition' : 'consultationFlashcard');
@@ -1102,6 +1100,10 @@ export default function LessicoGame() {
     const pool = current.sort((a, b) =>
       (a.term || '').localeCompare(b.term || '', 'it', { sensitivity: 'base' })
     );
+    // Reset consultation filters BEFORE setting gameMode to avoid flash of filtered content
+    setConsultLetters(['all']);
+    setConsultFavorites(false);
+    setConsultOrder('alpha');
     setActivePool(pool);
     setPersonalSentenceSelected(pool[0]?.term || null);
     setGameMode('personalSentences');
