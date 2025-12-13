@@ -2277,7 +2277,7 @@ export default function LessicoGame() {
             <strong className="text-cyan-300">📋 Copia negli appunti (TXT):</strong> Include le sezioni selezionate sotto. Ideale per studiare o condividere velocemente.
           </p>
           <p className="text-slate-300 text-xs leading-relaxed">
-            <strong className="text-cyan-300">💾 Scarica CSV:</strong> Tutto il vocabolario con colonne aggiornate: APPRESO (SI/NO/RIPASSO), Preferito (SI/NO), Frasi personali. Ricaricalo nella prossima sessione per continuare da dove hai lasciato.
+            <strong className="text-cyan-300">💾 Scarica CSV 👉🏻</strong> Tutto il vocabolario con colonne aggiornate: APPRESO (SI/NO/RIPASSO), Preferito (SI/NO), Frasi personali. Ricaricalo nella prossima sessione per continuare da dove hai lasciato.
           </p>
         </div>
 
