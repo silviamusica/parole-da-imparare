@@ -947,25 +947,12 @@ export default function LessicoGame() {
                   <li><strong>Risposte corrette:</strong> ultime risposte giuste nei giochi</li>
                   <li><strong>Apprese:</strong> parole marcate come "apprese"</li>
                 </ul>
-                <p className="text-slate-300 text-xs mt-2">💡 Da qui puoi esportare tutto in CSV/TXT per salvare i progressi.</p>
               </div>
             </div>
           </div>
 
           <div className="border-t border-slate-700 pt-4">
-            <p className="font-semibold text-base mb-2">⚡ 4. Filtri rapidi (Studio e Frasi personali)</p>
-            <p className="text-slate-300 text-xs">In cima alla pagina trovi i filtri rapidi per concentrarti al volo:</p>
-            <ul className="list-none space-y-1 mt-2 text-slate-400 text-xs">
-              <li><strong>Lettere:</strong> clicca per filtrare per iniziale</li>
-              <li><strong>Alfabetico/Casuale:</strong> cambia l'ordine di visualizzazione</li>
-              <li><strong>Preferiti:</strong> mostra solo parole con ❤️</li>
-              <li><strong>Ripasso:</strong> mostra solo parole da ripassare</li>
-              <li><strong>Reset:</strong> rimuovi tutti i filtri</li>
-            </ul>
-          </div>
-
-          <div className="border-t border-slate-700 pt-4">
-            <p className="font-semibold text-base mb-2">💾 5. Esporta o copia i progressi</p>
+            <p className="font-semibold text-base mb-2">💾 4. Esporta o copia i progressi</p>
             <p className="text-slate-300 text-xs">Vai su "Risultati" per esportare il tuo lavoro:</p>
             <ul className="list-none space-y-1.5 mt-2 text-slate-400 text-xs">
               <li><strong>TXT:</strong> solo preferiti, ripasso e frasi personali (perfetto per studiare o condividere)</li>
