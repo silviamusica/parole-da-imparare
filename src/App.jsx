@@ -938,7 +938,7 @@ export default function LessicoGame() {
           </div>
 
           <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mt-4">
-            <p className="text-cyan-200 text-xs">🎯 <strong>Suggerimento:</strong> Inizia con "Studio → Vista Schede" per familiarizzare con le parole, poi passa a "Flashcard" per memorizzare, usa "Frasi personali" per consolidare scrivendo esempi tuoi, e infine prova i "Giochi" per verificare quanto hai imparato!</p>
+            <p className="text-cyan-200 text-xs">🎯 <strong>Suggerimento:</strong> inizia con "Studio → Vista Schede" per familiarizzare con le parole, poi passa a "Flashcard" per memorizzare, usa "Frasi personali" per consolidare scrivendo esempi tuoi, e infine prova i "Giochi" per verificare quanto hai imparato!</p>
           </div>
         </div>
       </div>
@@ -1708,7 +1708,7 @@ export default function LessicoGame() {
         </div>
         <div className="space-y-1">
           {word.accent && (
-            <p className="text-slate-300"><span className="font-semibold">Accento:</span> <span className="italic text-slate-100">{word.accent}</span></p>
+            <p className="text-slate-300"><span className="font-semibold">accento:</span> <span className="italic text-slate-100">{word.accent}</span></p>
           )}
           {word.definition && (
             <p className="text-lg font-semibold text-slate-50">{word.definition}</p>
@@ -1720,19 +1720,19 @@ export default function LessicoGame() {
         {(safeSynonyms || safeAntonyms || safeFrequency || safeTechnical || showCommonErrors) && (
           <div className="text-sm text-slate-200 space-y-1">
             {safeSynonyms && (
-              <p><span className="font-semibold">Sinonimi:</span> <span className="text-slate-100">{safeSynonyms}</span></p>
+              <p><span className="font-semibold">sinonimi:</span> <span className="text-slate-100">{safeSynonyms}</span></p>
             )}
             {safeAntonyms && (
-              <p><span className="font-semibold">Contrari:</span> <span className="text-slate-100">{safeAntonyms}</span></p>
+              <p><span className="font-semibold">contrari:</span> <span className="text-slate-100">{safeAntonyms}</span></p>
             )}
             {safeFrequency && (
-              <p><span className="font-semibold">Frequenza d'uso:</span> <span className="text-slate-100">{safeFrequency}</span></p>
+              <p><span className="font-semibold">frequenza d'uso:</span> <span className="text-slate-100">{safeFrequency}</span></p>
             )}
             {safeTechnical && (
-              <p><span className="font-semibold">Linguaggio tecnico:</span> <span className="text-slate-100">{safeTechnical}</span></p>
+              <p><span className="font-semibold">linguaggio tecnico:</span> <span className="text-slate-100">{safeTechnical}</span></p>
             )}
             {showCommonErrors && (
-              <p><span className="font-semibold">Errori frequenti:</span> <span className="text-slate-100">{word.commonErrors}</span></p>
+              <p><span className="font-semibold">errori frequenti:</span> <span className="text-slate-100">{word.commonErrors}</span></p>
             )}
           </div>
         )}
@@ -2036,7 +2036,7 @@ export default function LessicoGame() {
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
             <p className="text-slate-400 text-sm mb-3">Scegli la modalità di studio</p>
             <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mb-3">
-              <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> Usa ❤️ <strong>Preferiti</strong> per le parole che vuoi aggiungere al tuo vocabolario personale. Usa 📝 <strong>Ripasso</strong> per le parole di cui non sei sicuro e che vuoi rivedere.</p>
+              <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> usa ❤️ <strong>Preferiti</strong> per le parole che vuoi aggiungere al tuo vocabolario personale. Usa 📝 <strong>Ripasso</strong> per le parole di cui non sei sicuro e che vuoi rivedere.</p>
             </div>
             <div className="grid gap-2">
               {[
@@ -2087,7 +2087,7 @@ export default function LessicoGame() {
           <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-4">
             <p className="text-slate-400 text-sm mb-3">Scegli con quale gioco imparare</p>
             <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mb-3">
-              <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> Usa ❤️ <strong>Preferiti</strong> per le parole che vuoi aggiungere al tuo vocabolario personale. Usa 📝 <strong>Ripasso</strong> per le parole di cui non sei sicuro e che vuoi rivedere.</p>
+              <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> usa ❤️ <strong>Preferiti</strong> per le parole che vuoi aggiungere al tuo vocabolario personale. Usa 📝 <strong>Ripasso</strong> per le parole di cui non sei sicuro e che vuoi rivedere.</p>
             </div>
             <div className="grid gap-2">
               {[
@@ -3343,20 +3343,20 @@ export default function LessicoGame() {
               </div>
               <div className="text-sm font-normal text-slate-200 space-y-2">
                 {(showCorrectAnswer || word).accent && (
-                  <p><span className="font-semibold">Accento:</span> <span className="italic text-slate-100">{(showCorrectAnswer || word).accent}</span></p>
+                  <p><span className="font-semibold">accento:</span> <span className="italic text-slate-100">{(showCorrectAnswer || word).accent}</span></p>
                 )}
-                <p><span className="font-semibold">Definizione:</span> <span className="text-slate-100">{(showCorrectAnswer || word).definition}</span></p>
+                <p><span className="font-semibold">definizione:</span> <span className="text-slate-100">{(showCorrectAnswer || word).definition}</span></p>
                 {(showCorrectAnswer || word).etymology && (
-                  <p><span className="font-semibold">Etimologia:</span> <span className="italic text-slate-300">{(showCorrectAnswer || word).etymology}</span></p>
+                  <p><span className="font-semibold">etimologia:</span> <span className="italic text-slate-300">{(showCorrectAnswer || word).etymology}</span></p>
                 )}
                 {(showCorrectAnswer || word).commonErrors && (
-                  <p><span className="font-semibold">Errori frequenti:</span> <span className="text-slate-100">{(showCorrectAnswer || word).commonErrors}</span></p>
+                  <p><span className="font-semibold">errori frequenti:</span> <span className="text-slate-100">{(showCorrectAnswer || word).commonErrors}</span></p>
                 )}
                 {(showCorrectAnswer || word).frequencyUsage && (
-                  <p><span className="font-semibold">Frequenza d'uso:</span> <span className="text-slate-100">{(showCorrectAnswer || word).frequencyUsage}</span></p>
+                  <p><span className="font-semibold">frequenza d'uso:</span> <span className="text-slate-100">{(showCorrectAnswer || word).frequencyUsage}</span></p>
                 )}
                 {(showCorrectAnswer || word).technical && (
-                  <p><span className="font-semibold">Linguaggio tecnico:</span> <span className="text-slate-100">{(showCorrectAnswer || word).technical}</span></p>
+                  <p><span className="font-semibold">linguaggio tecnico:</span> <span className="text-slate-100">{(showCorrectAnswer || word).technical}</span></p>
                 )}
               </div>
               <ExamplesBlock word={showCorrectAnswer || word} className="text-left" />
@@ -3706,8 +3706,8 @@ export default function LessicoGame() {
         <p className="text-slate-200 mb-2 leading-relaxed">{word.definition}</p>
         {(word.synonyms || word.antonyms) && (
           <div className="text-slate-300 text-sm space-y-1 mb-2">
-            {word.synonyms && <p><span className="font-semibold">Sinonimi:</span> {word.synonyms}</p>}
-            {word.antonyms && <p><span className="font-semibold">Contrari:</span> {word.antonyms}</p>}
+            {word.synonyms && <p><span className="font-semibold">sinonimi:</span> {word.synonyms}</p>}
+            {word.antonyms && <p><span className="font-semibold">contrari:</span> {word.antonyms}</p>}
           </div>
         )}
         {word.etymology && (
@@ -3715,9 +3715,9 @@ export default function LessicoGame() {
         )}
         {(word.frequencyUsage || (word.technical && word.technical.toLowerCase() !== 'comune') || (word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno')) && (
           <div className="text-slate-400 text-xs space-y-1 mb-2">
-            {word.frequencyUsage && <p>Frequenza d'uso: {word.frequencyUsage}</p>}
-            {word.technical && word.technical.toLowerCase() !== 'comune' && <p>Linguaggio tecnico: {word.technical}</p>}
-            {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>Errori comuni: {word.commonErrors}</p>}
+                    {word.frequencyUsage && <p>frequenza d'uso: {word.frequencyUsage}</p>}
+                    {word.technical && word.technical.toLowerCase() !== 'comune' && <p>linguaggio tecnico: {word.technical}</p>}
+                    {word.commonErrors && word.commonErrors.toLowerCase() !== 'nessuno' && <p>errori comuni: {word.commonErrors}</p>}
           </div>
         )}
         <ExamplesBlock word={word} />
@@ -4408,7 +4408,7 @@ export default function LessicoGame() {
               </div>
 
               <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3">
-                <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> Da Google Sheets, Excel, LibreOffice o Numbers, scegli "File → Scarica/Esporta → CSV" e seleziona UTF-8. Non modificare l'intestazione!</p>
+                <p className="text-cyan-200 text-xs"><strong>💡 Suggerimento:</strong> da Google Sheets, Excel, LibreOffice o Numbers, scegli "File → Scarica/Esporta → CSV" e seleziona UTF-8. Non modificare l'intestazione!</p>
               </div>
             </div>
           </div>
