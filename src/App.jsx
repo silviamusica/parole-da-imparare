@@ -47,7 +47,7 @@ const cleanOptionalField = (val) => {
   const trimmed = `${val}`.trim();
   if (!trimmed) return '';
   const lowered = trimmed.toLowerCase();
-  if (['no', '-', '--', '/', 'non applicabile', 'n/a'].includes(lowered)) return '';
+  if (['no', '-', '--', '/', 'non applicabile', 'n/a', 'nessuno'].includes(lowered)) return '';
   return trimmed;
 };
 
@@ -2313,7 +2313,7 @@ export default function LessicoGame() {
           </div>
 
           <div className="space-y-3">
-            <p className="text-slate-300 text-sm">Scegli quante parole includere: puoi prendere tutto l’elenco o una tranche percentuale.</p>
+            <p className="text-slate-300 text-sm">Scegli quante parole includere nella tua sessione di studio e gioco.</p>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-slate-200">
@@ -2321,8 +2321,9 @@ export default function LessicoGame() {
                 </span>
               </div>
             </div>
+              <div className="border-t border-slate-700/50 my-4"></div>
               <div className="grid gap-3">
-                <p className="text-slate-400 text-xs px-1">Tranche percentuale: scegli la fetta di parole da usare (se non selezioni, usi tutte).</p>
+                <p className="text-slate-400 text-xs px-1 mb-0.5 mt-5">Tranche percentuale: scegli la fetta di parole da usare (se non selezioni, usi tutte).</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/** Calcolo disponibilità tranche */}
                   {(() => {
@@ -2375,45 +2376,56 @@ export default function LessicoGame() {
               </div>
 
               <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Lettere: filtra per iniziale alfabetica.</div>
-              <button
-                onClick={() => setShowLetterPicker(prev => !prev)}
-                className="w-full bg-slate-800/60 text-slate-200 rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between shadow-inner"
-                type="button"
-              >
-                <span className="text-sm tracking-wide text-slate-200">Lettere</span>
-                <span className="text-slate-100 font-semibold whitespace-nowrap text-sm">({getLetterFilterLabel()})</span>
-              </button>
-              {showLetterPicker && (
-                <div className="bg-slate-900 border border-slate-500 rounded-xl p-3 shadow-xl w-full mt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <button
-                      className={`text-xs px-2 py-1 rounded border ${consultLetters.includes('all') ? 'border-amber-300 text-amber-200' : 'border-slate-600 text-slate-300 hover:border-slate-500'}`}
-                      onClick={() => toggleLetterFilter('all')}
-                    >
-                      Tutte
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-6 gap-1 text-slate-200 text-xs">
-                    {'abcdefghijklmnopqrstuvwxyz'.split('').map(letter => {
-                      const active = consultLetters.includes(letter);
-                      return (
-                        <label key={letter} className={`flex items-center gap-1 px-1 py-0.5 rounded ${active ? 'bg-amber-500/20 text-amber-200' : 'hover:bg-slate-800'}`}>
-                          <input
-                            type="checkbox"
-                            className="accent-amber-400"
-                            checked={active}
-                            onChange={() => toggleLetterFilter(letter)}
-                          />
-                          <span className="uppercase">{letter}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowLetterPicker(prev => !prev)}
+                  className="w-full bg-slate-800/60 text-slate-200 rounded-xl px-4 py-3 text-sm text-left flex items-center justify-between shadow-inner"
+                  type="button"
+                >
+                  <span className="text-sm tracking-wide text-slate-200">Lettere</span>
+                  <span className="text-slate-100 font-semibold whitespace-nowrap text-sm">({getLetterFilterLabel()})</span>
+                </button>
+                {showLetterPicker && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowLetterPicker(false)}
+                    />
+                    <div className="relative z-20 bg-slate-900 border border-slate-500 rounded-xl p-3 shadow-xl w-full mt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <button
+                          className={`text-xs px-2 py-1 rounded border ${consultLetters.includes('all') ? 'border-amber-300 text-amber-200' : 'border-slate-600 text-slate-300 hover:border-slate-500'}`}
+                          onClick={() => toggleLetterFilter('all')}
+                        >
+                          Tutte
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-6 gap-1 text-slate-200 text-xs">
+                        {'abcdefghijklmnopqrstuvwxyz'.split('').map(letter => {
+                          const active = consultLetters.includes(letter);
+                          return (
+                            <label key={letter} className={`flex items-center gap-1 px-1 py-0.5 rounded ${active ? 'bg-amber-500/20 text-amber-200' : 'hover:bg-slate-800'}`}>
+                              <input
+                                type="checkbox"
+                                className="accent-amber-400"
+                                checked={active}
+                                onChange={() => toggleLetterFilter(letter)}
+                              />
+                              <span className="uppercase">{letter}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Preferiti: le parole che hai contrassegnato con il cuore.</div>
+              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
+                <div className="flex items-center gap-2 text-sm leading-tight">
+                  <span>Preferiti</span>
+                  <span className="text-xs text-slate-400 ml-1">({favorites.size})</span>
                 </div>
-              )}
-              <div className="text-slate-400 text-xs px-1 mb-0.5 mt-2">Preferiti: le parole che hai contrassegnato con il cuore.</div>
-              <label className="flex items-center justify-between gap-3 text-sm text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
-                <span>Preferiti</span>
                 <input
                   type="checkbox"
                   checked={consultFavorites}
@@ -2422,7 +2434,7 @@ export default function LessicoGame() {
                 />
               </label>
               <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Ripasso: attiva solo le parole che hai segnato "Ripasso" in questa sessione<br />(esclude quelle già marcate nel CSV, se non le hai aggiunte ora).</div>
-              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner mt-0">
+              <label className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Ripasso</span>
                   <span className="text-xs text-slate-400 ml-1">({wordsToReview.length})</span>
@@ -2436,7 +2448,7 @@ export default function LessicoGame() {
               </label>
 
               <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Filtra per stadio di apprendimento.</div>
-              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner mt-0">
+              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Stadio di apprendimento</span>
                 </div>
@@ -2453,7 +2465,7 @@ export default function LessicoGame() {
               </div>
 
               <div className="text-slate-400 text-xs px-1 mb-0.5 mt-4">Limita alle parole inserite in un determinato lasso di tempo.</div>
-              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner mt-0">
+              <div className="flex items-center justify-between gap-3 text-slate-200 bg-slate-800/60 rounded-xl px-4 py-3 shadow-inner">
                 <div className="flex items-center gap-2 text-sm leading-tight">
                   <span>Ultime inserite</span>
                 </div>
