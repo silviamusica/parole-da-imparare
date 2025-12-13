@@ -483,6 +483,20 @@ export default function LessicoGame() {
     } catch {}
   };
 
+  // Reset tutti i filtri
+  const resetAllFilters = () => {
+    setSubsetMode('all');
+    setChunkPercent(10);
+    setChunkIndex(0);
+    setOnlyWrongSubset(false);
+    setLearnedFilter('all');
+    setConsultOrder('alpha');
+    setConsultLetters(['all']);
+    setConsultFavorites(false);
+    setUseRecent(false);
+    setRecentMode('count');
+  };
+
   // Gestione upload file
   const processCSVFile = (file) => {
     if (!file) return;
@@ -2564,13 +2578,22 @@ export default function LessicoGame() {
               <div className="flex items-center gap-2">
                 <h2 id="filters-dialog-title" className="text-2xl font-bold text-slate-100">Imposta i filtri</h2>
               </div>
-              <button
-                onClick={() => setShowSelectionPanel(false)}
-                className="bg-cyan-900 text-slate-50 px-3 py-1 rounded-xl font-semibold text-sm border border-cyan-800/60 shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)]"
-                aria-label="Chiudi pannello filtri"
-              >
-                Chiudi
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={resetAllFilters}
+                  className="bg-slate-700 hover:bg-slate-600 text-slate-100 px-3 py-1 rounded-xl font-semibold text-sm border border-slate-600 transition-colors"
+                  aria-label="Resetta tutti i filtri"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setShowSelectionPanel(false)}
+                  className="bg-cyan-900 text-slate-50 px-3 py-1 rounded-xl font-semibold text-sm border border-cyan-800/60 shadow-[0_6px_18px_-12px_rgba(34,211,238,0.35)]"
+                  aria-label="Chiudi pannello filtri"
+                >
+                  Chiudi
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
