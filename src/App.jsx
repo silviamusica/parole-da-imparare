@@ -1586,13 +1586,31 @@ export default function LessicoGame() {
 
   // Copia negli appunti con feedback
   const copyToClipboard = async (format) => {
-    // Verifica se ci sono dati da copiare
-    const hasData = favorites.size > 0 || wordsToReview.length > 0 || masteredWords.size > 0 ||
-                    words.some(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0);
+    // Verifica se almeno una sezione è selezionata
+    const hasSectionSelected = exportIncludeRipasso || exportIncludePreferite ||
+                                exportIncludeCorrette || exportIncludeApprese || exportIncludeFrasi;
+
+    if (!hasSectionSelected) {
+      setCopyFeedback('✗ Seleziona almeno una sezione da includere nell\'export.');
+      setTimeout(() => setCopyFeedback(''), 3000);
+      return;
+    }
+
+    // Verifica se ci sono dati da copiare nelle sezioni selezionate
+    const ripassoFromCSV = words.filter(w => w.appreso === 'RIPASSO');
+    const allRipasso = [...new Map([...wordsToReview, ...ripassoFromCSV].map(w => [w.term, w])).values()];
+    const apprese = words.filter(w => w.learned || w.appreso === 'SI');
+    const withSentences = words.filter(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0);
+
+    const hasData = (exportIncludeRipasso && allRipasso.length > 0) ||
+                    (exportIncludePreferite && favorites.size > 0) ||
+                    (exportIncludeCorrette && masteredWords.size > 0) ||
+                    (exportIncludeApprese && apprese.length > 0) ||
+                    (exportIncludeFrasi && withSentences.length > 0);
 
     if (!hasData) {
-      setCopyFeedback('✗ Nessun contenuto da copiare: aggiungi preferiti, ripasso, risposte corrette o frasi personali prima.');
-      setTimeout(() => setCopyFeedback(''), 4000);
+      setCopyFeedback('✗ Nessun contenuto disponibile nelle sezioni selezionate.');
+      setTimeout(() => setCopyFeedback(''), 3000);
       return;
     }
 
