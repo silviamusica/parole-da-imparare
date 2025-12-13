@@ -512,6 +512,7 @@ export default function LessicoGame() {
     setConsultFavorites(false);
     setUseRecent(false);
     setRecentMode('count');
+    setActivePool([]); // Svuota activePool per riapplicare i filtri resettati
   };
 
   // Gestione upload file
