@@ -1972,8 +1972,8 @@ export default function LessicoGame() {
               }}
             >
               <Upload className="w-12 h-12 text-slate-500 mx-auto mb-4 group-hover:text-cyan-600 transition-colors" />
-              <p className="text-slate-200 font-medium mb-1">Trascina o seleziona un file CSV</p>
-              <p className="text-slate-500 text-sm">Formato: CSV UTF-8 con intestazione.</p>
+              <p className="text-slate-200 font-medium mb-1">Trascina o seleziona il tuo file</p>
+              <p className="text-slate-500 text-sm">Già preparato? Caricalo qui!</p>
             </div>
             <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
           </label>
