@@ -900,12 +900,12 @@ export default function LessicoGame() {
             <p className="font-semibold text-base mb-2">🎯 2. Imposta i filtri (opzionale)</p>
             <p className="text-slate-300">Clicca "Imposta i filtri" per concentrarti su un sottoinsieme di parole:</p>
             <ul className="list-none space-y-1.5 mt-2 text-slate-300">
+              <li><strong>• Tranche:</strong> dividi in gruppi (10%, 20%, 33%, 50%)</li>
               <li><strong>• Lettere:</strong> filtra per iniziale alfabetica</li>
               <li><strong>• Preferiti:</strong> solo parole che hai contrassegnato con ❤️</li>
               <li><strong>• Ripasso:</strong> solo parole che hai aggiunto alla lista ripasso</li>
               <li><strong>• Stadio:</strong> apprese, non apprese, o in ripasso</li>
               <li><strong>• Ultime inserite:</strong> per data di inserimento</li>
-              <li><strong>• Tranche:</strong> dividi in gruppi (10%, 20%, 33%, 50%)</li>
             </ul>
             <p className="text-slate-300 mt-2 text-xs">💡 Se non imposti filtri, lavori su tutte le parole.</p>
           </div>
