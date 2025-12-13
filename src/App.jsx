@@ -2274,7 +2274,7 @@ export default function LessicoGame() {
 
         <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-3 mb-3">
           <p className="text-slate-300 text-xs leading-relaxed mb-2">
-            <strong className="text-cyan-300">📋 Copia negli appunti (TXT):</strong> Include le sezioni selezionate sotto. Ideale per studiare o condividere velocemente.
+            <strong className="text-cyan-300">📋 Copia negli appunti (TXT) 👉🏻</strong> Include le sezioni selezionate sotto: ideale per studiare o condividere velocemente.
           </p>
           <p className="text-slate-300 text-xs leading-relaxed">
             <strong className="text-cyan-300">💾 Scarica CSV 👉🏻</strong> Tutto il vocabolario con colonne aggiornate: APPRESO (SI/NO/RIPASSO), Preferito (SI/NO), Frasi personali. Ricaricalo nella prossima sessione per continuare da dove hai lasciato.
