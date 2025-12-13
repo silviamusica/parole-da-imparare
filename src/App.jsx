@@ -1337,6 +1337,13 @@ export default function LessicoGame() {
     setStreak(streak + 1);
     setMaxStreak(Math.max(maxStreak, streak + 1));
     setGameStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
+
+    // Aggiungi parola alle risposte corrette
+    const currentWord = shuffledWords[currentIndex];
+    if (currentWord) {
+      setMasteredWords(prev => new Set([...prev, currentWord.term]));
+    }
+
     setIsTimerRunning(false);
     // Non animare la volpe sulle risposte, solo al click esplicito
     // Per i giochi a domanda (quiz/speed/compelta/frasi) mostra feedback e attendi conferma
@@ -1467,6 +1474,7 @@ export default function LessicoGame() {
 
       const withSentences = alpha(words.filter(w => Array.isArray(w.personalSentences) && w.personalSentences.length > 0));
       const risposteCorrette = alpha(words.filter(w => masteredWords.has(w.term)));
+      const apprese = alpha(words.filter(w => w.learned || w.appreso === 'SI'));
 
       const sectionText = (title, list) => {
         if (!list.length) return `${title}:\n(nessuna)\n`;
@@ -1493,6 +1501,7 @@ export default function LessicoGame() {
         sectionText('Ripasso', ripasso),
         sectionText('Preferite', preferite),
         compactListText('Risposte corrette', risposteCorrette),
+        compactListText('Apprese', apprese),
         sentencesText()
       ].join('\n');
     } else if (format === 'csv') {
