@@ -975,7 +975,7 @@ export default function LessicoGame() {
           </div>
 
           <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mt-4">
-            <p className="text-cyan-200 text-xs">🎯 <strong>Suggerimento:</strong> Inizia con "Studio → Vista Schede" per familiarizzare con le parole, poi passa a "Flashcard" per memorizzare, e infine ai "Giochi" per consolidare!</p>
+            <p className="text-cyan-200 text-xs">🎯 <strong>Suggerimento:</strong> Inizia con "Studio → Vista Schede" per familiarizzare con le parole, poi passa a "Flashcard" per memorizzare, usa "Frasi personali" per consolidare scrivendo esempi tuoi, e infine prova i "Giochi" per verificare quanto hai imparato!</p>
           </div>
         </div>
       </div>
