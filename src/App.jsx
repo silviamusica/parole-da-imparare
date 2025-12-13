@@ -3870,11 +3870,8 @@ export default function LessicoGame() {
   const PersonalSentencesMode = () => {
     // State locale per l'input - evita re-render del componente principale
     const [localSentenceInput, setLocalSentenceInput] = useState('');
-
-    // Resetta la visualizzazione definizione quando entra nella modalità
-    useEffect(() => {
-      setShowPersonalDetails(false);
-    }, []);
+    // State locale per mostrare/nascondere definizione
+    const [localShowDetails, setLocalShowDetails] = useState(false);
 
     // Usa sempre filteredPool per rispettare i filtri lettere/preferiti in tempo reale
     const orderedPool = useMemo(
@@ -4044,12 +4041,12 @@ export default function LessicoGame() {
                 {selectedWord && (
                   <div className="mt-3">
                     <button
-                      onClick={() => setShowPersonalDetails(prev => !prev)}
+                      onClick={() => setLocalShowDetails(prev => !prev)}
                       className="text-sm text-cyan-300 underline underline-offset-4 hover:text-cyan-200"
                     >
-                      {showPersonalDetails ? 'Nascondi definizione' : 'Mostra definizione'}
+                      {localShowDetails ? 'Nascondi definizione' : 'Mostra definizione'}
                     </button>
-                    {showPersonalDetails && (
+                    {localShowDetails && (
                       <div className="mt-3 bg-slate-900/60 border border-slate-700 rounded-2xl p-4 space-y-2 shadow-inner">
                         <div className="flex items-start justify-between gap-3">
                           <div>
