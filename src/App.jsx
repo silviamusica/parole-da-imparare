@@ -1606,12 +1606,31 @@ export default function LessicoGame() {
         return;
       }
 
-      await navigator.clipboard.writeText(text);
-      setCopyFeedback('✓ Contenuto copiato negli appunti!');
-      setTimeout(() => setCopyFeedback(''), 2000);
+      // Metodo compatibile per copia clipboard (fallback per Safari e browser senza HTTPS)
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      try {
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        if (successful) {
+          setCopyFeedback('✓ Contenuto copiato negli appunti!');
+          setTimeout(() => setCopyFeedback(''), 2000);
+        } else {
+          throw new Error('Comando copia non riuscito');
+        }
+      } catch (execErr) {
+        document.body.removeChild(textarea);
+        throw execErr;
+      }
     } catch (err) {
       console.error('Errore copia clipboard:', err);
-      setCopyFeedback(`✗ Errore: ${err.message || 'verifica i permessi del browser'}`);
+      setCopyFeedback('✗ Impossibile copiare. Prova a selezionare e copiare manualmente dal file scaricato.');
       setTimeout(() => setCopyFeedback(''), 4000);
     }
   };
