@@ -2834,7 +2834,7 @@ export default function LessicoGame() {
           <GameHeader />
           
           <div className="text-center text-slate-400 mb-4">
-            {Math.min(currentIndex + 1, shuffledWords.length)} / {filteredPool.length || shuffledWords.length}
+            {Math.min(currentIndex + 1, shuffledWords.length)} / {shuffledWords.length}
           </div>
 
           <div 
