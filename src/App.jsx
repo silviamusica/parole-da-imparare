@@ -4132,13 +4132,7 @@ export default function LessicoGame() {
 
       const total = perLetter.reduce((sum, s) => sum + s.words.length, 0);
 
-      const combined = perLetter.length > 0 ? {
-        letter: 'Tutte le lettere',
-        words: orderWords(perLetter.flatMap(s => s.words)),
-        combined: true
-      } : null;
-
-      return { sections: [combined, ...perLetter].filter(Boolean), total };
+      return { sections: perLetter, total };
     }, [pool, consultOrder]);
 
     const filteredCount = total;
